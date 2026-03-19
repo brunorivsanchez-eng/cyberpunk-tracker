@@ -1,0 +1,82 @@
+{
+    "jugadores": [
+        {
+            "nombre": "V",
+            "max_hp": 60,
+            "hp": 60,
+            "max_body_sp": 11,
+            "body_sp": 11,
+            "max_head_sp": 11,
+            "head_sp": 11,
+            "max_luck": 6,
+            "luck": 6,
+            "death_penalty": 0,
+            "armas": {
+                "Pistola": {
+                    "actual": 12,
+                    "max": 12
+                },
+                "Escopeta": {
+                    "actual": 4,
+                    "max": 4
+                }
+            }
+        },
+        {
+            "nombre": "Jony",
+            "max_hp": 45,
+            "hp": 45,
+            "max_body_sp": 4,
+            "body_sp": 4,
+            "max_head_sp": 4,
+            "head_sp": 4,
+            "max_luck": 8,
+            "luck": 8,
+            "death_penalty": 0,
+            "armas": {
+                "Revólver": {
+                    "actual": 6,
+                    "max": 6
+                }
+            }
+        },
+        {
+            "nombre": "Jaky",
+            "max_hp": 45,
+            "hp": 45,
+            "max_body_sp": 7,
+            "body_sp": 7,
+            "max_head_sp": 7,
+            "head_sp": 7,
+            "max_luck": 4,
+            "luck": 4,
+            "death_penalty": 0,
+            "armas": {
+                "Subfusil": {
+                    "actual": 30,
+                    "max": 30
+                }
+            }
+        }
+    ],
+    "adversarios": [
+        {
+            "nombre": "Maelstrom Grunt",
+            "max_hp": 30,
+            "hp": 30,
+            "max_body_sp": 4,
+            "body_sp": 4,
+            "max_head_sp": 4,
+            "head_sp": 4,
+            "max_luck": 0,
+            "luck": 0,
+            "death_penalty": 0,
+            "armas": {
+                "Rifle Asalto": {
+                    "actual": 25,
+                    "max": 25
+                }
+            }
+        }
+    ]
+}
