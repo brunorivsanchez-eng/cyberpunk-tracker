@@ -1,0 +1,68 @@
+QMainWindow { background-color: #121212; }
+
+QFrame#ContenedorPersonaje {
+    background-color: #1E1E1E;
+    border: 1px solid #333333;
+    border-radius: 12px;
+}
+
+QLabel#NombrePJ {
+    color: #00FF00;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+QProgressBar {
+    border: 1px solid #444444;
+    border-radius: 6px;
+    background-color: #2C2C2C;
+    text-align: center;
+    color: white;
+    font-weight: bold;
+    height: 18px;
+    font-size: 11px;
+}
+
+QProgressBar::chunk { border-radius: 5px; }
+
+QLineEdit {
+    background-color: #2C2C2C;
+    color: white;
+    border: 1px solid #444444;
+    border-radius: 4px;
+    padding: 1px;
+    font-size: 11px;
+}
+
+QPushButton {
+    background-color: #333333;
+    color: #00FF00;
+    border-radius: 4px;
+    font-weight: bold;
+    padding: 3px;
+    font-size: 11px;
+}
+QPushButton:hover { background-color: #444444; }
+
+QPushButton#BtnAjuste {
+    font-size: 11px;
+    background-color: #2C2C2C;
+    border: 1px solid #555555;
+}
+QPushButton#BtnAjuste:hover { background-color: #555555; }
+
+QComboBox {
+    background-color: #2C2C2C;
+    color: white;
+    border: 1px solid #444444;
+    border-radius: 4px;
+    padding: 2px;
+    font-family: 'Arial', sans-serif;
+    font-size: 11px;
+}
+QComboBox QAbstractItemView {
+    background-color: #1E1E1E;
+    color: white;
+    selection-background-color: #555555;
+}
