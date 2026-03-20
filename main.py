@@ -10,7 +10,8 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Cyberpunk Pro Tracker")
-        self.resize(1150, 600) 
+        #self.resize(1500, 600) 
+        self.showMaximized()
         
         # Carga de Estilos QSS
         dir_path = os.path.dirname(os.path.abspath(__file__))
@@ -27,7 +28,7 @@ class MainWindow(QMainWindow):
         self.layout_lista = QVBoxLayout(contenedor_central)
         self.layout_lista.setAlignment(Qt.AlignmentFlag.AlignTop)
         
-       # --- NUEVA LÓGICA: Intento de Carga desde JSON ---
+       # ---  Carga desde JSON ---
         pjs_cargados, npcs_cargados = controlador.cargar_partida()
         
         if pjs_cargados is not None and npcs_cargados is not None:
@@ -37,12 +38,31 @@ class MainWindow(QMainWindow):
         else:
             # Si es la primera vez que se abre, usamos las plantillas quemadas en código
             self.pjs = [
-                Personaje("Dumy", 60, 11, 11, 6, armas={"Pistola": {"actual": 12, "max": 12}}, death_penalty=0),
-
+                Personaje(
+                    "Dumy", 60, 11, 11, 6, 8, 
+                    armas={
+                        "Pistola": {
+                            "actual": 12, 
+                            "max": 12, 
+                            "efecto": "Ignora 2 puntos de SP (Armadura)." # <-- Llave agregada
+                        }
+                    }, 
+                    death_penalty=0
+                ),
             ]
             self.npcs = [
-                Personaje("DumyNpc", 30, 4, 4, 0, armas={"Rifle Asalto": {"actual": 25, "max": 25}}, death_penalty=0),
-                
+                Personaje(
+                    "DumyNpc", 30, 4, 4, 0, 6, 
+                    armas={
+                        "Rifle Asalto": {
+                            "actual": 25, 
+                            "max": 25, 
+                            "efecto": "Fuego automático: permite atacar a 2 objetivos adyacentes." # <-- Llave agregada
+                        }
+                    }, 
+                    death_penalty=0,
+                    mejoras=["Sandevistan: +3 Ini", "Berserker: +1 CaC", "Visión Térmica"]
+                ),
             ]
 
         # 1. Renderizado de Jugadores
@@ -60,12 +80,8 @@ class MainWindow(QMainWindow):
         scroll.setWidget(contenedor_central)
         self.setCentralWidget(scroll)
 
-    # --- NUEVA FUNCIÓN: Intercepción del evento de cierre ---
+    # Intercepción del evento de cierre ---
     def closeEvent(self, event):
-        """
-        Este método es nativo de PyQt6. Se ejecuta automáticamente cuando 
-        el usuario presiona la 'X' para cerrar la ventana.
-        """
         controlador.guardar_partida(self.pjs, self.npcs)
         event.accept()
 

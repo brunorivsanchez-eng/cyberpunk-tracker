@@ -1,0 +1,160 @@
+/* ==============================================================================
+CAMBIAR LOS IDS DE LAS TABLAS PARA QUE SEA MAS FACIL 
+============================================================================== */
+
+
+/* ==============================================================================
+   FASE 0: LIMPIEZA DEL ENTORNO DE PRUEBAS
+   Eliminación de tablas en orden inverso para no violar restricciones de llaves foráneas.
+   El uso de "IF EXISTS" evita errores si es la primera vez que se ejecuta el script.
+============================================================================== */
+
+DROP TABLE IF EXISTS personaje_buffos CASCADE;
+DROP TABLE IF EXISTS inventario CASCADE;
+DROP TABLE IF EXISTS arma_efectos CASCADE;
+DROP TABLE IF EXISTS personajes CASCADE;
+DROP TABLE IF EXISTS armas CASCADE;
+DROP TABLE IF EXISTS e_armas CASCADE;
+DROP TABLE IF EXISTS npc_buffos CASCADE;
+
+/* ==============================================================================
+   FASE 1: DEFINICIÓN DEL ESQUEMA (DDL - Data Definition Language)
+   Creación de las tablas maestras independientes (Padres).
+============================================================================== */
+
+-- 1. Catálogo de Buffos para NPCs (Ayuda visual)
+CREATE TABLE npc_buffos (
+    id SERIAL PRIMARY KEY,
+    nombre VARCHAR(100) UNIQUE NOT NULL,
+    descripcion TEXT NOT NULL
+);
+
+-- 2. Catálogo de Efectos de Armas
+CREATE TABLE e_armas (
+    id SERIAL PRIMARY KEY,
+    nombre VARCHAR(100) UNIQUE NOT NULL,
+    descripcion TEXT NOT NULL
+);
+
+-- 3. Catálogo de Armas (Especificaciones de fábrica)
+CREATE TABLE armas (
+    id SERIAL PRIMARY KEY,
+    nombre VARCHAR(100) UNIQUE NOT NULL,
+    max_balas INTEGER NOT NULL DEFAULT 0
+);
+
+-- 4. Tabla Central de Entidades (Personajes y NPCs)
+CREATE TABLE personajes (
+    id SERIAL PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    max_hp INTEGER NOT NULL,
+    hp INTEGER NOT NULL,
+    max_body_sp INTEGER DEFAULT 0,
+    body_sp INTEGER DEFAULT 0,
+    max_head_sp INTEGER DEFAULT 0,
+    head_sp INTEGER DEFAULT 0,
+    max_luck INTEGER DEFAULT 0,
+    luck INTEGER DEFAULT 0,
+    max_move INTEGER DEFAULT 5,
+    move INTEGER DEFAULT 5,
+    es_npc BOOLEAN DEFAULT FALSE
+);
+
+/* ==============================================================================
+   FASE 2: TABLAS DE VINCULACIÓN (Puentes Relacionales)
+   Creación de las tablas dependientes (Hijas).
+============================================================================== */
+
+-- 5. Tabla de Unión (Relación Muchos a Muchos: Armas -> Efectos)
+CREATE TABLE arma_efectos (
+    arma_id INTEGER REFERENCES armas(id) ON DELETE CASCADE,
+    efecto_id INTEGER REFERENCES e_armas(id) ON DELETE CASCADE,
+    PRIMARY KEY (arma_id, efecto_id)
+);
+
+-- 6. Puente de Equipamiento: Inventario (Relación Personajes -> Armas)
+CREATE TABLE inventario (
+    id SERIAL PRIMARY KEY,
+    personaje_id INTEGER REFERENCES personajes(id) ON DELETE CASCADE,
+    arma_id INTEGER REFERENCES armas(id) ON DELETE RESTRICT,
+    balas_actual INTEGER NOT NULL 
+);
+
+-- 7. Puente de Habilidades: Buffos asignados (Relación Personajes -> npc_buffos)
+CREATE TABLE personaje_buffos (
+    personaje_id INTEGER REFERENCES personajes(id) ON DELETE CASCADE,
+    buffo_id INTEGER REFERENCES npc_buffos(id) ON DELETE CASCADE,
+    PRIMARY KEY (personaje_id, buffo_id) 
+);
+
+/* ==============================================================================
+   FASE 3: POBLADO DE DATOS (DML - Data Manipulation Language)
+   Inserción de registros. Primero los catálogos, luego las vinculaciones.
+============================================================================== */
+-- Llenado de Catálogos (Padres)
+INSERT INTO npc_buffos (nombre, descripcion) VALUES 
+('Sandevistan', 'Iniciativa +3.'),
+('Óptica Kiroshi', 'Visión térmica. Ignora penalizadores por humo u oscuridad.');
+
+/* ==============================================================================
+   INSERCIÓN DE EFECTOS DE ARMAS 
+============================================================================== */
+
+INSERT INTO e_armas (nombre, descripcion) VALUES 
+('Disparo Automático (3)', 'Permite multiplicar el daño base con un máximo de 3.'),
+('Disparo Automático (4)', 'Permite multiplicar el daño base con un máximo de 4.'),
+('Disparo Automático (5)', 'Permite multiplicar el daño base con un máximo de 5.'),
+('Cartucho de Escopeta', 'Área de x3 casillas vs DV13.'),
+('Explosivo', 'Daño "6d6". Al penetrar armadura, reduce 2 puntos de SP en lugar de 1.'),
+('Granada de Humo', 'Área(5x5 casillas) por 1 min. Bloquea línea de visión. Penalizador -4 a todas las acciones dentro de la nube.'),
+('Granada Aturdidora', 'Sin daño directo. Objetivo debe superar Tirada Resistir Tortura/Drogas VD15. Si falla: Estados "Ojo Dañado" y "Oído Dañado" por 1 min.'),
+('Efecto Incendiario', 'El objetivo arde (Fuego Mortal), al final de cada turno. Apagarse requiere 1 Acción Completa.'),
+('Misil', 'Daño "8d6". Al penetrar armadura, reduce 2 puntos de SP en lugar de 1.');
+
+/* ==============================================================================
+   POBLADO DEL CATÁLOGO DE ARMAS 
+============================================================================== */
+INSERT INTO armas (nombre, max_balas) VALUES 
+-- Armas de Fuego
+('Pistola mediana', 12),
+('Pistola pesada', 8),
+('Pistola muy pesada', 8),
+('Subfusil', 30),
+('Subfusil pesado', 40),
+('Escopeta', 4),
+('Fusil de asalto', 25),
+('Fusil de francotirador', 4),
+('Lanzagranadas', 2), 
+('Lanzamisiles', 1),
+
+-- Armas Cuerpo a Cuerpo (Munición 0)
+('Arma cac (Media)', 0),
+('Arma cac (Pesada)', 0),
+('Arma cac (Muy pesada)', 0),
+
+-- Granadas (Consideradas como armas de 1 solo uso en este esquema)
+('Granada estándar', 1),
+('Granada de humo', 1),
+('Granada aturdidora', 1),
+('Granada incendiaria', 1); 
+
+/* ==============================================================================
+   VINCULACIÓN Arma_efectos (CORREGIDA)
+============================================================================== */
+
+-- 1. Vincular Efectos de Disparo Automático
+INSERT INTO arma_efectos (arma_id, efecto_id) VALUES 
+((SELECT id FROM armas WHERE nombre = 'Subfusil'), (SELECT id FROM e_armas WHERE nombre = 'Disparo Automático (3)')),
+((SELECT id FROM armas WHERE nombre = 'Subfusil pesado'), (SELECT id FROM e_armas WHERE nombre = 'Disparo Automático (3)')),
+((SELECT id FROM armas WHERE nombre = 'Fusil de asalto'), (SELECT id FROM e_armas WHERE nombre = 'Disparo Automático (4)'));
+
+-- 2. Vincular Efectos de Área y Especiales
+-- Nota: Cambiamos 'Explosivo (Área)' por 'Explosivo' para que coincida con el catálogo
+INSERT INTO arma_efectos (arma_id, efecto_id) VALUES 
+((SELECT id FROM armas WHERE nombre = 'Escopeta'), (SELECT id FROM e_armas WHERE nombre = 'Cartucho de Escopeta')),
+((SELECT id FROM armas WHERE nombre = 'Lanzagranadas'), (SELECT id FROM e_armas WHERE nombre = 'Explosivo')),
+((SELECT id FROM armas WHERE nombre = 'Granada estándar'), (SELECT id FROM e_armas WHERE nombre = 'Explosivo')),
+((SELECT id FROM armas WHERE nombre = 'Granada de humo'), (SELECT id FROM e_armas WHERE nombre = 'Granada de Humo')),
+((SELECT id FROM armas WHERE nombre = 'Granada aturdidora'), (SELECT id FROM e_armas WHERE nombre = 'Granada Aturdidora')),
+((SELECT id FROM armas WHERE nombre = 'Granada incendiaria'), (SELECT id FROM e_armas WHERE nombre = 'Efecto Incendiario')),
+((SELECT id FROM armas WHERE nombre = 'Lanzamisiles'), (SELECT id FROM e_armas WHERE nombre = 'Misil'));

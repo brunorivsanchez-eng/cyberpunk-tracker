@@ -66,3 +66,13 @@ QComboBox QAbstractItemView {
     color: white;
     selection-background-color: #555555;
 }
+
+QToolTip {
+    background-color: #1E1E1E;
+    color: #00FFFF;
+    border: 1px solid #555555;
+    border-radius: 4px;
+    font-family: 'Arial', sans-serif;
+    font-size: 12px;
+    padding: 5px;
+}

@@ -1,6 +1,7 @@
 class Personaje:
-    def __init__(self, nombre, max_hp, max_body_sp, max_head_sp, max_luck, armas=None, death_penalty=0):
+    def __init__(self, nombre, max_hp, max_body_sp, max_head_sp, max_luck, move, armas=None, death_penalty=0, mejoras=None):
         self.nombre = nombre
+        #Barras 
         self.max_hp = max_hp
         self.hp = max_hp
         self.max_body_sp = max_body_sp
@@ -9,12 +10,13 @@ class Personaje:
         self.head_sp = max_head_sp
         self.max_luck = max_luck
         self.luck = max_luck
-        
-        # --- NUEVA ESTRUCTURA: Diccionario de armas ---
-        self.armas = armas if armas is not None else {}
-        
+        self.move = int(move)
+        self.max_move = int(move)
+        #Otros
         self.death_penalty = death_penalty
         self.death_penalty = int(death_penalty)
+        self.armas = armas if armas is not None else {}
+        self.mejoras = mejoras if mejoras is not None else []
 
     def aplicar_impacto(self, danio_bruto, es_cabeza=False, es_melee=False, es_directo=False):
         if es_directo:
@@ -48,10 +50,6 @@ class Personaje:
         setattr(self, atributo, nuevo_valor)
 
     def modificar_atributo_simple(self, atributo, cantidad_relativa):
-        """
-        Modifica un contador simple (balas, penalizador de muerte) sumando o restando.
-        Garantiza que el resultado se mantenga entre 0 y un límite superior razonable (ej. 99).
-        """
         if not hasattr(self, atributo):
              print(f"Error: El atributo '{atributo}' no existe.")
              return

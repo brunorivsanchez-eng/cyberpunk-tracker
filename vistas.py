@@ -1,14 +1,19 @@
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
                              QProgressBar, QLineEdit, QPushButton, 
-                             QFrame, QSizePolicy, QComboBox)
+                             QFrame, QSizePolicy, QComboBox, QTextEdit)
 from PyQt6.QtCore import Qt
 import controlador
+
+class NoScrollComboBox(QComboBox):
+    def wheelEvent(self, event):
+        # Ignora el evento de la rueda para que el QScrollArea lo procese
+        event.ignore()
 
 class PersonajeWidget(QFrame):
     def __init__(self, personaje_obj, es_npc=False):
             super().__init__()
             self.setObjectName("ContenedorPersonaje")
-            self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+            self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
             
             layout_principal = QVBoxLayout(self)
             layout_principal.setContentsMargins(8, 8, 8, 8)
@@ -20,7 +25,7 @@ class PersonajeWidget(QFrame):
             lbl_nombre = QLabel(personaje_obj.nombre.upper())
             lbl_nombre.setObjectName("NombrePJ")
             
-            btn_reset = QPushButton("🔄 RESET")
+            btn_reset = QPushButton("🔄RESET🔄")
             btn_reset.setFixedWidth(65)
             btn_reset.setStyleSheet("background-color: #8B0000; color: white; font-weight: bold; border-radius: 4px;")
             
@@ -32,11 +37,11 @@ class PersonajeWidget(QFrame):
 
             self.widgets_referencia = {}
             self.widgets_referencia["nombre"] = lbl_nombre 
-            # --- NUEVA LÍNEA: Guardamos el estado NPC en el diccionario ---
             self.widgets_referencia["es_npc"] = es_npc 
             
             btn_reset.clicked.connect(lambda checked, p=personaje_obj, w=self.widgets_referencia: 
-                                    controlador.resetear_personaje(p, w))
+                                      controlador.resetear_personaje(p, w))
+                                      
             # --- FILA 1: HP Y COMBATE ---
             fila_hp = QHBoxLayout()
             
@@ -80,13 +85,13 @@ class PersonajeWidget(QFrame):
                 btn_curar = QPushButton("💚 Curar")
                 btn_curar.setStyleSheet("background-color: #2E7D32; color: white;") 
                 btn_curar.clicked.connect(lambda checked: 
-                                        controlador.procesar_curacion(personaje_obj, input_dano, self.widgets_referencia))
+                                          controlador.procesar_curacion(personaje_obj, input_dano, self.widgets_referencia))
                 fila_hp.addWidget(btn_curar)
 
             fila_hp.addStretch(1)
             layout_principal.addLayout(fila_hp)
 
-            # --- FILA 2: ESTADÍSTICAS AMPLIADAS (Layout Puro) ---
+            # --- FILA 2: ESTADÍSTICAS AMPLIADAS ---
             layout_stats_ampliado = QHBoxLayout()
             layout_stats_ampliado.setContentsMargins(0, 0, 0, 0)
             layout_stats_ampliado.setSpacing(25)
@@ -95,11 +100,12 @@ class PersonajeWidget(QFrame):
             columna_izquierda = QWidget()
             layout_col_izq = QVBoxLayout(columna_izquierda)
             layout_col_izq.setContentsMargins(0, 0, 0, 0)
-            layout_col_izq.setSpacing(4)
+            layout_col_izq.setSpacing(5)
 
             stats_secundarios = [
                 ("BODY SP", "body_sp", "max_body_sp", "#4444FF"),
-                ("HEAD SP", "head_sp", "max_head_sp", "#44FFFF")
+                ("HEAD SP", "head_sp", "max_head_sp", "#44FFFF"),
+                ("MOVE", "move", "max_move", "#C05223")
             ]
             if not es_npc:
                 stats_secundarios.append(("LUCK", "luck", "max_luck", "#FFCC00"))
@@ -123,13 +129,13 @@ class PersonajeWidget(QFrame):
                 btn_menos.setObjectName("BtnAjuste")
                 btn_menos.setFixedWidth(24)
                 btn_menos.clicked.connect(lambda checked, p=personaje_obj, a=attr, cant=-1, b=barra: 
-                                        controlador.ajustar_stat_secundario(p, a, cant, b))
+                                          controlador.ajustar_stat_secundario(p, a, cant, b))
                 
                 btn_mas = QPushButton("+")
                 btn_mas.setObjectName("BtnAjuste")
                 btn_mas.setFixedWidth(24)
                 btn_mas.clicked.connect(lambda checked, p=personaje_obj, a=attr, cant=1, b=barra: 
-                                        controlador.ajustar_stat_secundario(p, a, cant, b))
+                                          controlador.ajustar_stat_secundario(p, a, cant, b))
 
                 fila.addWidget(lbl)
                 fila.addWidget(barra)
@@ -138,13 +144,7 @@ class PersonajeWidget(QFrame):
                 fila.addStretch(1)
                 layout_col_izq.addLayout(fila)
 
-            # COLUMNA 2 DERECHA: BALAS, MUERTE Y FUEGO
-            columna_derecha = QWidget()
-            layout_col_der = QVBoxLayout(columna_derecha)
-            layout_col_der.setContentsMargins(0, 0, 0, 0)
-            layout_col_der.setSpacing(4)
-
-            # --- COLUMNA 2: MUERTE Y FUEGO ---
+            # --- COLUMNA 2: MUERTE Y FUEGO (Líneas redundantes eliminadas) ---
             columna_derecha = QWidget()
             layout_col_der = QVBoxLayout(columna_derecha)
             layout_col_der.setContentsMargins(0, 0, 0, 0)
@@ -173,7 +173,7 @@ class PersonajeWidget(QFrame):
                 btn_mas_d.setObjectName("BtnAjuste")
                 btn_mas_d.setFixedWidth(24)
                 btn_mas_d.clicked.connect(lambda checked, p=personaje_obj, c=1, l=lbl_val_death: 
-                                        controlador.ajustar_atributo_simple(p, "death_penalty", c, l))
+                                           controlador.ajustar_atributo_simple(p, "death_penalty", c, l))
 
                 fila_death.addWidget(lbl_death_tit)
                 fila_death.addWidget(lbl_val_death)
@@ -200,7 +200,7 @@ class PersonajeWidget(QFrame):
             btn_fuego_10.setFixedWidth(50)
             btn_fuego_10.setStyleSheet("background-color: #8B0000; color: white; font-size: 10px;")
             btn_fuego_10.clicked.connect(lambda checked, p=personaje_obj, c=10, w=self.widgets_referencia: 
-                                        controlador.aplicar_dano_fijo(p, c, w))
+                                         controlador.aplicar_dano_fijo(p, c, w))
 
             fila_fuego.addWidget(lbl_fuego_tit)
             fila_fuego.addWidget(btn_fuego_5)
@@ -228,6 +228,27 @@ class PersonajeWidget(QFrame):
                     lbl_nombre_arma = QLabel(nombre_arma)
                     lbl_nombre_arma.setFixedWidth(70)
                     lbl_nombre_arma.setStyleSheet("color: white; font-size: 10px;")
+
+                # --- LÓGICA DE TOOLTIP ---
+                if "efecto" in datos_arma and datos_arma["efecto"]:
+                    
+                    # Inyección de CSS y HTML directo al texto del Tooltip
+                    texto_tooltip = f"""
+                    <div style='
+                        background-color: #1E1E1E; 
+                        color: #00FFFF; 
+                        padding: 5px; 
+                        border: 1px solid #555555;
+                        font-family: Arial; 
+                        font-size: 11pt;'>
+                        <b>{nombre_arma}</b><br>
+                        <span style='color: #FFFFFF;'>Efecto: {datos_arma['efecto']}</span>
+                    </div>
+                    """
+                    
+                    lbl_nombre_arma.setToolTip(texto_tooltip)
+                    lbl_nombre_arma.setCursor(Qt.CursorShape.WhatsThisCursor)
+
                     
                     lbl_val_arma = QLabel(str(datos_arma["actual"]))
                     lbl_val_arma.setFixedWidth(25)
@@ -240,8 +261,8 @@ class PersonajeWidget(QFrame):
                     btn_menos_10.setObjectName("BtnAjuste")
                     btn_menos_10.setFixedWidth(26)
                     btn_menos_10.clicked.connect(lambda checked, p=personaje_obj, n=nombre_arma, c=-10, l=lbl_val_arma: 
-                                                controlador.ajustar_municion_arma(p, n, c, l))
-                                                
+                                                 controlador.ajustar_municion_arma(p, n, c, l))
+                                                 
                     btn_menos_1 = QPushButton("-1")
                     btn_menos_1.setObjectName("BtnAjuste")
                     btn_menos_1.setFixedWidth(26)
@@ -279,7 +300,7 @@ class PersonajeWidget(QFrame):
             layout_col_est.addWidget(lbl_estados_tit)
 
             lista_estados = [
-                "", 
+                "---", 
                 "Brazo roto: -2 a todas las acciones",
                 "Pierna rota: Movimiento a la mitad",
                 "Cegado: -4 a visión/ataques",
@@ -291,21 +312,80 @@ class PersonajeWidget(QFrame):
             self.widgets_referencia["debufos"] = []
 
             for _ in range(3):
-                combo = QComboBox()
+                combo = NoScrollComboBox() 
                 combo.setFixedWidth(300)
                 combo.addItems(lista_estados)
                 layout_col_est.addWidget(combo)
                 self.widgets_referencia["debufos"].append(combo)
 
             layout_col_est.addStretch(1)
+           # --- COLUMNA 5: MEJORAS / CYBERWARE ESTÁTICO (DINÁMICO EN COLUMNAS) ---
+            # Solo se procesa si es un NPC y tiene mejoras asignadas en el modelo
+            if es_npc and hasattr(personaje_obj, "mejoras") and personaje_obj.mejoras:
+                
+                # Contenedor horizontal principal para todas las columnas de mejoras
+                contenedor_mejoras_final = QWidget()
+                layout_mej_final_horizontal = QHBoxLayout(contenedor_mejoras_final)
+                layout_mej_final_horizontal.setContentsMargins(15, 0, 0, 0) # Margen izquierdo para separar de debufos
+                layout_mej_final_horizontal.setSpacing(15) # Espacio entre columna 1 y columna 2
+                
+                # Configuración de estilos para el título y texto
+                estilo_titulo_mej = "color: #00FFFF; font-weight: bold; font-family: 'Arial', sans-serif; font-size: 11px;"
+                estilo_texto_mej = "color: #AAAAAA; font-size: 11px; font-style: italic;"
 
-            # --- ENSAMBLAJE FINAL DE COLUMNAS (Añadidas Columna 3 y 4) ---
+                # Lógica de distribución: agrupar mejoras en listas de máx 5 elementos
+                todas_las_mejoras = personaje_obj.mejoras
+                # Divide la lista original en sublistas usando "list comprehension" y "slicing"
+                columnas_agrupadas = [todas_las_mejoras[i:i + 5] for i in range(0, len(todas_las_mejoras), 5)]
+
+                # Iterar sobre las agrupaciones para crear columnas visuales
+                for num_col, sublista in enumerate(columnas_agrupadas):
+                    
+                    # Crear el widget y layout de columna vertical
+                    col_widget_vertical = QWidget()
+                    layout_v_individual = QVBoxLayout(col_widget_vertical)
+                    layout_v_individual.setContentsMargins(0, 0, 0, 0)
+                    layout_v_individual.setSpacing(4)
+                    layout_v_individual.setAlignment(Qt.AlignmentFlag.AlignTop) # Alinear ítems hacia arriba
+
+                    # Solo se añade el título "🦾 MEJORAS" a la primera columna
+                    if num_col == 0:
+                        lbl_mej_tit = QLabel("🦾MEJORAS🦾")
+                        lbl_mej_tit.setStyleSheet(estilo_titulo_mej)
+                        layout_v_individual.addWidget(lbl_mej_tit)
+                    else:
+                        # Espaciador vertical en columnas siguientes para alinear texto con la columna 1
+                        # (Ajuste de 15 píxeles aprox. para compensar la altura del título)
+                        layout_v_individual.addSpacing(15)
+
+                    # Formatear y añadir las mejoras de la sublista actual
+                    texto_sublista = "\n".join([f"• {mejora}" for mejora in sublista])
+                    lbl_texto_sublista = QLabel(texto_sublista)
+                    lbl_texto_sublista.setStyleSheet(estilo_texto_mej)
+                    lbl_texto_sublista.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+                    # No activamos setWordWrap para forzar que ocupen espacio horizontal y no vertical
+                    
+                    layout_v_individual.addWidget(lbl_texto_sublista)
+                    layout_v_individual.addStretch(1) # Stretch al final para compactar hacia arriba
+
+                    # Añadir la columna vertical completa al contenedor horizontal final
+                    layout_mej_final_horizontal.addWidget(col_widget_vertical)
+
+                # Stretch horizontal al final del contenedor para empujar las columnas a la izquierda
+                layout_mej_final_horizontal.addStretch(1)
+
+            # --- ENSAMBLAJE FINAL DE COLUMNAS ---
             layout_stats_ampliado.addWidget(columna_izquierda)
             layout_stats_ampliado.addWidget(columna_derecha)
             layout_stats_ampliado.addWidget(columna_armas)
             layout_stats_ampliado.addWidget(columna_estados)
             
-            layout_stats_ampliado.addStretch(1) 
+            # Inserción condicional del contenedor horizontal de mejoras (con sus columnas internas)
+            if es_npc and hasattr(personaje_obj, "mejoras") and personaje_obj.mejoras:
+                layout_stats_ampliado.addWidget(contenedor_mejoras_final)
+                
+            layout_stats_ampliado.addStretch(1)
             
             layout_principal.addLayout(layout_stats_ampliado)
-            layout_principal.addStretch(1)
+            
+            
