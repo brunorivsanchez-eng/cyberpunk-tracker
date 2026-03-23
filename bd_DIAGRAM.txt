@@ -1,52 +1,79 @@
 /* ==============================================================================
-CAMBIAR LOS IDS DE LAS TABLAS PARA QUE SEA MAS FACIL 
+   FASE 0: LIMPIEZA DEL ENTORNO
 ============================================================================== */
 
-
-/* ==============================================================================
-   FASE 0: LIMPIEZA DEL ENTORNO DE PRUEBAS
-   Eliminación de tablas en orden inverso para no violar restricciones de llaves foráneas.
-   El uso de "IF EXISTS" evita errores si es la primera vez que se ejecuta el script.
-============================================================================== */
-
-DROP TABLE IF EXISTS personaje_buffos CASCADE;
-DROP TABLE IF EXISTS inventario CASCADE;
-DROP TABLE IF EXISTS arma_efectos CASCADE;
-DROP TABLE IF EXISTS personajes CASCADE;
-DROP TABLE IF EXISTS armas CASCADE;
-DROP TABLE IF EXISTS e_armas CASCADE;
+DROP TABLE IF EXISTS armas_propiedades CASCADE;
+DROP TABLE IF EXISTS plantillas_armas CASCADE;
+DROP TABLE IF EXISTS propiedades_armas CASCADE;
+DROP TABLE IF EXISTS buffos CASCADE;
+DROP TABLE IF EXISTS inventario_jugadores CASCADE;
 DROP TABLE IF EXISTS npc_buffos CASCADE;
+DROP TABLE IF EXISTS npc_armas CASCADE;
+DROP TABLE IF EXISTS npc CASCADE;
+DROP TABLE IF EXISTS jugadores CASCADE;
+DROP TABLE IF EXISTS jugadores_debuffos CASCADE;
+DROP TABLE IF EXISTS catalogo_debuffos CASCADE;
 
 /* ==============================================================================
-   FASE 1: DEFINICIÓN DEL ESQUEMA (DDL - Data Definition Language)
-   Creación de las tablas maestras independientes (Padres).
+   FASE 1: DEFINICIÓN DEL ESQUEMA (DDL)
 ============================================================================== */
-
--- 1. Catálogo de Buffos para NPCs (Ayuda visual)
-CREATE TABLE npc_buffos (
-    id SERIAL PRIMARY KEY,
+-- 1. Catálogo de Buffos y Mejoras Generales
+CREATE TABLE buffos (
+    id_buffo SERIAL PRIMARY KEY,
     nombre VARCHAR(100) UNIQUE NOT NULL,
     descripcion TEXT NOT NULL
 );
 
--- 2. Catálogo de Efectos de Armas
-CREATE TABLE e_armas (
-    id SERIAL PRIMARY KEY,
+-- 2. Cualidades mecánicas inherentes a las armas
+CREATE TABLE propiedades_armas (
+    id_propiedad SERIAL PRIMARY KEY,
     nombre VARCHAR(100) UNIQUE NOT NULL,
     descripcion TEXT NOT NULL
 );
 
--- 3. Catálogo de Armas (Especificaciones de fábrica)
-CREATE TABLE armas (
-    id SERIAL PRIMARY KEY,
+-- 3. Moldes base de armamento
+CREATE TABLE plantillas_armas (
+    id_plantilla SERIAL PRIMARY KEY,
     nombre VARCHAR(100) UNIQUE NOT NULL,
     max_balas INTEGER NOT NULL DEFAULT 0
 );
 
--- 4. Tabla Central de Entidades (Personajes y NPCs)
-CREATE TABLE personajes (
-    id SERIAL PRIMARY KEY,
-    nombre VARCHAR(100) NOT NULL,
+
+
+/* ==============================================================================
+   BLOQUE 1: BESTIARIO (ESTÁTICO / SOLO LECTURA)
+============================================================================== */
+-- 1. Catálogo Base de Enemigos
+CREATE TABLE npc (
+    id_npc SERIAL PRIMARY KEY,
+    nombre VARCHAR(100) UNIQUE NOT NULL,
+    max_hp INTEGER NOT NULL,
+    max_body_sp INTEGER DEFAULT 0,
+    max_head_sp INTEGER DEFAULT 0,
+    max_move INTEGER DEFAULT 5
+);
+-- 2. Puente: Armamento predeterminado del NPC
+CREATE TABLE npc_armas (
+    id_npc INTEGER REFERENCES npc(id_npc) ON DELETE CASCADE,
+    id_plantilla INTEGER REFERENCES plantillas_armas(id_plantilla) ON DELETE CASCADE,
+    PRIMARY KEY (id_npc, id_plantilla)
+);
+
+-- 3. Puente: Mejoras y habilidades del NPC
+CREATE TABLE npc_buffos (
+    id_npc INTEGER REFERENCES npc(id_npc) ON DELETE CASCADE,
+    id_buffo INTEGER REFERENCES buffos(id_buffo) ON DELETE CASCADE,
+    PRIMARY KEY (id_npc, id_buffo)
+);
+
+/* ==============================================================================
+   BLOQUE 2: ESTADO DE PARTIDA (DINÁMICO / PERSISTENTE)
+============================================================================== */
+
+-- 4. Personajes de los Usuarios (Contiene estado en tiempo real)
+CREATE TABLE jugadores (
+    id_jugador SERIAL PRIMARY KEY,
+    nombre VARCHAR(100) UNIQUE NOT NULL,
     max_hp INTEGER NOT NULL,
     hp INTEGER NOT NULL,
     max_body_sp INTEGER DEFAULT 0,
@@ -57,50 +84,53 @@ CREATE TABLE personajes (
     luck INTEGER DEFAULT 0,
     max_move INTEGER DEFAULT 5,
     move INTEGER DEFAULT 5,
-    es_npc BOOLEAN DEFAULT FALSE
+    death_penalty INTEGER DEFAULT 0
+);
+
+-- 5. Puente: Inventario activo del Jugador
+CREATE TABLE inventario_jugadores (
+    id_jugador INTEGER REFERENCES jugadores(id_jugador) ON DELETE CASCADE,
+    id_plantilla INTEGER REFERENCES plantillas_armas(id_plantilla) ON DELETE RESTRICT,
+    balas_actuales INTEGER NOT NULL,
+    PRIMARY KEY (id_jugador, id_plantilla)
+);
+
+
+-- 1. Catálogo Base con Columnas Opcionales para Tratamiento
+CREATE TABLE catalogo_debuffos (
+    id_debufo SERIAL PRIMARY KEY,
+    nombre VARCHAR(50) NOT NULL,
+    descripcion TEXT NOT NULL,
+    tipo VARCHAR(20) CHECK (tipo IN ('Temporal', 'Permanente')) NOT NULL,
+    remedio_rapido TEXT,
+    tratamiento TEXT,
+    UNIQUE (nombre, tipo) -- NUEVO: Permite repetir nombres si son de distinto tipo
+);
+
+-- 2. Tabla Puente (Se mantiene simple y única)
+CREATE TABLE jugadores_debuffos (
+    id_jugador INTEGER REFERENCES jugadores(id_jugador) ON DELETE CASCADE,
+    id_debufo INTEGER REFERENCES catalogo_debuffos(id_debufo) ON DELETE CASCADE,
+    PRIMARY KEY (id_jugador, id_debufo)
 );
 
 /* ==============================================================================
-   FASE 2: TABLAS DE VINCULACIÓN (Puentes Relacionales)
-   Creación de las tablas dependientes (Hijas).
+   FASE 2: TABLA DE VINCULACIÓN (Puente)
 ============================================================================== */
 
--- 5. Tabla de Unión (Relación Muchos a Muchos: Armas -> Efectos)
-CREATE TABLE arma_efectos (
-    arma_id INTEGER REFERENCES armas(id) ON DELETE CASCADE,
-    efecto_id INTEGER REFERENCES e_armas(id) ON DELETE CASCADE,
-    PRIMARY KEY (arma_id, efecto_id)
-);
-
--- 6. Puente de Equipamiento: Inventario (Relación Personajes -> Armas)
-CREATE TABLE inventario (
-    id SERIAL PRIMARY KEY,
-    personaje_id INTEGER REFERENCES personajes(id) ON DELETE CASCADE,
-    arma_id INTEGER REFERENCES armas(id) ON DELETE RESTRICT,
-    balas_actual INTEGER NOT NULL 
-);
-
--- 7. Puente de Habilidades: Buffos asignados (Relación Personajes -> npc_buffos)
-CREATE TABLE personaje_buffos (
-    personaje_id INTEGER REFERENCES personajes(id) ON DELETE CASCADE,
-    buffo_id INTEGER REFERENCES npc_buffos(id) ON DELETE CASCADE,
-    PRIMARY KEY (personaje_id, buffo_id) 
+-- 4. Tabla relacional Muchos a Muchos
+CREATE TABLE armas_propiedades (
+    id_plantilla INTEGER REFERENCES plantillas_armas(id_plantilla) ON DELETE CASCADE,
+    id_propiedad INTEGER REFERENCES propiedades_armas(id_propiedad) ON DELETE CASCADE,
+    PRIMARY KEY (id_plantilla, id_propiedad)
 );
 
 /* ==============================================================================
-   FASE 3: POBLADO DE DATOS (DML - Data Manipulation Language)
-   Inserción de registros. Primero los catálogos, luego las vinculaciones.
-============================================================================== */
--- Llenado de Catálogos (Padres)
-INSERT INTO npc_buffos (nombre, descripcion) VALUES 
-('Sandevistan', 'Iniciativa +3.'),
-('Óptica Kiroshi', 'Visión térmica. Ignora penalizadores por humo u oscuridad.');
-
-/* ==============================================================================
-   INSERCIÓN DE EFECTOS DE ARMAS 
+   FASE 3: POBLADO DE DATOS (DML)
 ============================================================================== */
 
-INSERT INTO e_armas (nombre, descripcion) VALUES 
+-- Inserción de Propiedades [cite: 19, 20, 21]
+INSERT INTO propiedades_armas (nombre, descripcion) VALUES 
 ('Disparo Automático (3)', 'Permite multiplicar el daño base con un máximo de 3.'),
 ('Disparo Automático (4)', 'Permite multiplicar el daño base con un máximo de 4.'),
 ('Disparo Automático (5)', 'Permite multiplicar el daño base con un máximo de 5.'),
@@ -111,11 +141,8 @@ INSERT INTO e_armas (nombre, descripcion) VALUES
 ('Efecto Incendiario', 'El objetivo arde (Fuego Mortal), al final de cada turno. Apagarse requiere 1 Acción Completa.'),
 ('Misil', 'Daño "8d6". Al penetrar armadura, reduce 2 puntos de SP en lugar de 1.');
 
-/* ==============================================================================
-   POBLADO DEL CATÁLOGO DE ARMAS 
-============================================================================== */
-INSERT INTO armas (nombre, max_balas) VALUES 
--- Armas de Fuego
+-- Poblado de Plantillas de Armas [cite: 22]
+INSERT INTO plantillas_armas (nombre, max_balas) VALUES 
 ('Pistola mediana', 12),
 ('Pistola pesada', 8),
 ('Pistola muy pesada', 8),
@@ -126,35 +153,110 @@ INSERT INTO armas (nombre, max_balas) VALUES
 ('Fusil de francotirador', 4),
 ('Lanzagranadas', 2), 
 ('Lanzamisiles', 1),
-
--- Armas Cuerpo a Cuerpo (Munición 0)
 ('Arma cac (Media)', 0),
 ('Arma cac (Pesada)', 0),
 ('Arma cac (Muy pesada)', 0),
-
--- Granadas (Consideradas como armas de 1 solo uso en este esquema)
 ('Granada estándar', 1),
 ('Granada de humo', 1),
 ('Granada aturdidora', 1),
 ('Granada incendiaria', 1); 
 
+-- Vinculación en la Tabla Puente [cite: 23, 24, 25]
+INSERT INTO armas_propiedades (id_plantilla, id_propiedad) VALUES 
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Subfusil'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Disparo Automático (3)')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Subfusil pesado'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Disparo Automático (3)')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Fusil de asalto'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Disparo Automático (4)')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Escopeta'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Cartucho de Escopeta')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Lanzagranadas'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Explosivo')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Granada estándar'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Explosivo')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Granada de humo'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Granada de Humo')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Granada aturdidora'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Granada Aturdidora')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Granada incendiaria'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Efecto Incendiario')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Lanzamisiles'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Misil'));
+
 /* ==============================================================================
-   VINCULACIÓN Arma_efectos (CORREGIDA)
+   POBLADO COMPLEMENTARIO: BUFFOS, BESTIARIO Y JUGADORES
 ============================================================================== */
 
--- 1. Vincular Efectos de Disparo Automático
-INSERT INTO arma_efectos (arma_id, efecto_id) VALUES 
-((SELECT id FROM armas WHERE nombre = 'Subfusil'), (SELECT id FROM e_armas WHERE nombre = 'Disparo Automático (3)')),
-((SELECT id FROM armas WHERE nombre = 'Subfusil pesado'), (SELECT id FROM e_armas WHERE nombre = 'Disparo Automático (3)')),
-((SELECT id FROM armas WHERE nombre = 'Fusil de asalto'), (SELECT id FROM e_armas WHERE nombre = 'Disparo Automático (4)'));
+-- 1. Poblado del Catálogo de Buffos y Mejoras
+INSERT INTO buffos (nombre, descripcion) VALUES 
+('Sandevistan', 'Iniciativa +3.'),
+('Óptica Kiroshi', 'Visión térmica. Ignora penalizadores por humo u oscuridad.');
 
--- 2. Vincular Efectos de Área y Especiales
--- Nota: Cambiamos 'Explosivo (Área)' por 'Explosivo' para que coincida con el catálogo
-INSERT INTO arma_efectos (arma_id, efecto_id) VALUES 
-((SELECT id FROM armas WHERE nombre = 'Escopeta'), (SELECT id FROM e_armas WHERE nombre = 'Cartucho de Escopeta')),
-((SELECT id FROM armas WHERE nombre = 'Lanzagranadas'), (SELECT id FROM e_armas WHERE nombre = 'Explosivo')),
-((SELECT id FROM armas WHERE nombre = 'Granada estándar'), (SELECT id FROM e_armas WHERE nombre = 'Explosivo')),
-((SELECT id FROM armas WHERE nombre = 'Granada de humo'), (SELECT id FROM e_armas WHERE nombre = 'Granada de Humo')),
-((SELECT id FROM armas WHERE nombre = 'Granada aturdidora'), (SELECT id FROM e_armas WHERE nombre = 'Granada Aturdidora')),
-((SELECT id FROM armas WHERE nombre = 'Granada incendiaria'), (SELECT id FROM e_armas WHERE nombre = 'Efecto Incendiario')),
-((SELECT id FROM armas WHERE nombre = 'Lanzamisiles'), (SELECT id FROM e_armas WHERE nombre = 'Misil'));
+-- 2. Creación de un NPC de prueba (Plantilla/Bestiario)
+INSERT INTO npc (nombre, max_hp, max_body_sp, max_head_sp, max_move) VALUES 
+('Matón Corporativo', 35, 7, 7, 5),
+('Pandillero Callejero', 25, 4, 0, 6);
+
+-- 3. Equipar armamento a los NPCs
+-- El matón usará un Fusil de Asalto. El pandillero usará una Pistola pesada y un Arma cac.
+INSERT INTO npc_armas (id_npc, id_plantilla) VALUES 
+((SELECT id_npc FROM npc WHERE nombre = 'Matón Corporativo'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Fusil de asalto')),
+((SELECT id_npc FROM npc WHERE nombre = 'Pandillero Callejero'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola pesada')),
+((SELECT id_npc FROM npc WHERE nombre = 'Pandillero Callejero'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Arma cac (Media)'));
+
+-- 4. Asignar mejoras (Buffos) a los NPCs
+-- El matón tendrá Sandevistan y Óptica Kiroshi.
+INSERT INTO npc_buffos (id_npc, id_buffo) VALUES 
+((SELECT id_npc FROM npc WHERE nombre = 'Matón Corporativo'), (SELECT id_buffo FROM buffos WHERE nombre = 'Sandevistan')),
+((SELECT id_npc FROM npc WHERE nombre = 'Matón Corporativo'), (SELECT id_buffo FROM buffos WHERE nombre = 'Óptica Kiroshi'));
+
+-- 5. Creación de un Jugador de prueba (Estado Activo)
+-- Note que aquí sí se declaran los valores actuales (hp, body_sp) iguales a los máximos al inicio.
+INSERT INTO jugadores (nombre, max_hp, hp, max_body_sp, body_sp, max_head_sp, head_sp, max_luck, luck, max_move, move) VALUES 
+('V', 45, 45, 11, 11, 11, 11, 8, 8, 8, 8),
+('Jackie', 60, 60, 14, 14, 11, 11, 5, 5, 6, 6);
+
+-- 6. Equipar inventario a los jugadores (Con seguimiento de balas)
+-- V lleva un Subfusil (lleno) y Jackie una Escopeta (llena).
+INSERT INTO inventario_jugadores (id_jugador, id_plantilla, balas_actuales) VALUES 
+(
+    (SELECT id_jugador FROM jugadores WHERE nombre = 'V'), 
+    (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Subfusil'), 
+    (SELECT max_balas FROM plantillas_armas WHERE nombre = 'Subfusil')
+),
+(
+    (SELECT id_jugador FROM jugadores WHERE nombre = 'Jackie'), 
+    (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Escopeta'), 
+    (SELECT max_balas FROM plantillas_armas WHERE nombre = 'Escopeta')
+);
+
+
+-- Inserción de la lista oficial de estados temporales
+INSERT INTO catalogo_debuffos (nombre, descripcion, tipo, remedio_rapido, tratamiento) VALUES 
+('---', 'Ranura vacía.', 'Temporal', NULL, NULL),
+('Cegado', '-4 a toda acción dentro de esta oscuridad.', 'Temporal', NULL, NULL),
+('Fuego Leve', '5 de daño directo al final de tu turno. Requiere gastar una acción para apagar.', 'Temporal', NULL, NULL),
+('Fuego Mortal', '10 de daño directo al final de tu turno. Requiere gastar una acción para apagar.', 'Temporal', NULL, NULL),
+('Drogado', '-2 a toda acción mientras dure el efecto.', 'Temporal', NULL, NULL),
+('Tumbado', 'Movimiento máximo reducido a 1. Requiere gastar una acción para levantarse.', 'Temporal', NULL, NULL),
+('Inconsciente', 'Incapaz de actuar.', 'Temporal', NULL, NULL);
+
+-- Eliminación de registros permanentes previos
+DELETE FROM catalogo_debuffos WHERE tipo = 'Permanente';
+
+-- Inserción de la lista oficial de estados permanentes y heridas críticas
+INSERT INTO catalogo_debuffos (nombre, descripcion, tipo, remedio_rapido, tratamiento) VALUES 
+('---', 'Ranura vacía.', 'Permanente', NULL, NULL),
+
+-- Estados de Salud Base
+('Gravemente Herido', '-2 a todas las acciones.', 'Permanente', 'N/D', 'Estabilizar VD 13'),
+('Mortalmente Herido', '-4 a todas las acciones. -6 a MOV (mínimo 1). Salvación contra muerte al inicio de cada turno. Sufre herida crítica si recibe daño. Penalización a salvación aumenta en 1.', 'Permanente', 'N/D', 'Recuperar a 1 PD tiene VD 15 y queda inconsciente por 1 minuto.'),
+
+-- Lesiones Críticas
+('Brazo Desmembrado', 'El Brazo Desmembrado ha desaparecido. Dejas caer inmediatamente cualquier objeto en esa mano. La penalización base para Salvación contra Muerte aumenta en 1.', 'Permanente', 'N/D', 'Cirugía DV 17'),
+('Mano Desmembrada', 'La Mano Desmembrada ha desaparecido. Dejas caer inmediatamente cualquier objeto en esa mano. La penalización base para Salvación contra Muerte aumenta en 1.', 'Permanente', 'N/D', 'Cirugía DV 17'),
+('Pulmón Colapsado', '-2 a MOV (mínimo 1). La penalización base para Salvación contra Muerte aumenta en 1.', 'Permanente', 'Paramédico DV 15', 'Cirugía DV 15'),
+('Costillas Rotas', 'Al final de cada turno en el que te muevas más de 4 metros en pie, sufres nuevamente 5 puntos de Daño directo a tus HP.', 'Permanente', 'Paramédico DV 13', 'Paramédico DV 15 / Cirugía DV 13'),
+('Brazo Roto', 'El Brazo Roto no puede ser utilizado. Dejas caer inmediatamente cualquier objeto en esa mano.', 'Permanente', 'Paramédico DV 13', 'Paramédico DV 15 / Cirugía DV 13'),
+('Objeto Extraño', 'Al final de cada turno en el que te muevas más de 4 metros en pie, sufres nuevamente 5 puntos de Daño directo a tus HP.', 'Permanente', 'Primeros Auxilios/Paramédico DV 13', 'Remedio Rápido'),
+('Pierna Rota', '-4 a MOV (mínimo 1).', 'Permanente', 'Paramédico DV 13', 'Paramédico DV 15 / Cirugía DV 13'),
+('Lesión Espinal', 'En el próximo turno, no puedes realizar una acción, pero aún puedes realizar una Acción de Movimiento. La penalización base para Salvación contra Muerte aumenta en 1.', 'Permanente', 'Paramédico DV 15', 'Cirugía DV 15'),
+('Pierna Desmembrada', 'La Pierna ha desaparecido. -6 a MOV (mínimo 1). No puedes esquivar ataques. La penalización base para Salvación contra Muerte aumenta en 1.', 'Permanente', 'N/D', 'Cirugía DV 17'),
+('Ojo Perdido', 'El Ojo se ha ido. -4 a Ataques a Distancia y Percepción visual. La penalización base para Salvación contra Muerte aumenta en 1.', 'Permanente', 'N/D', 'Cirugía DV 17'),
+('Lesión Cerebral', '-2 a todas las acciones. La penalización base para Salvación contra Muerte aumenta en 1.', 'Permanente', 'N/D', 'Cirugía DV 17'),
+('Ojo Dañado', '-2 a Ataques a Distancia y Percepción visual.', 'Permanente', 'Paramédico DV 15', 'Cirugía DV 13'),
+('Conmoción', '-2 a todas las acciones.', 'Permanente', 'Primeros Auxilios/Paramédico DV 13', 'Solución Rápida'),
+('Mandíbula Rota', '-4 a todas las acciones que involucren el habla.', 'Permanente', 'Paramédico DV 13', 'Paramédico/Cirugía DV 13'),
+('Latigazo Cervical', 'La penalización base para Salvación contra Muerte aumenta en 1.', 'Permanente', 'Paramédico DV 13', 'Paramédico/Cirugía DV 13'),
+('Cráneo Agrietado', 'Disparos a tu cabeza multiplican el daño que atraviesa tu Protección por 6 en lugar de 4. La penalización base para Salvación contra Muerte aumenta en 1.', 'Permanente', 'Paramédico DV 15', 'Paramédico/Cirugía DV 15');

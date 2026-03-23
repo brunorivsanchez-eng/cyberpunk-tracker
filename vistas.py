@@ -212,81 +212,118 @@ class PersonajeWidget(QFrame):
             # --- COLUMNA 3: MUNICIÓN DINÁMICA ---
             columna_armas = QWidget()
             layout_col_armas = QVBoxLayout(columna_armas)
+            # Margen izquierdo de 15px para separarlo ligeramente de la SP (armadura)
             layout_col_armas.setContentsMargins(15, 0, 0, 0)
             layout_col_armas.setSpacing(4)
 
             lbl_armas_tit = QLabel("MUNICIÓN")
+            # Estilo rosa neón para el título de la columna
             lbl_armas_tit.setStyleSheet("color: #FF00FF; font-weight: bold; font-family: 'Arial', sans-serif; font-size: 11px;")
+            # Alineado al centro de la columna para que coincida visualmente con el label Melee
+            lbl_armas_tit.setAlignment(Qt.AlignmentFlag.AlignCenter)
             layout_col_armas.addWidget(lbl_armas_tit)
 
             self.widgets_referencia["armas"] = {}
 
             if hasattr(personaje_obj, "armas") and personaje_obj.armas:
                 for nombre_arma, datos_arma in personaje_obj.armas.items():
-                    fila_arma = QHBoxLayout()
+                    fila_arma = QWidget()
+                    layout_fila_arma = QHBoxLayout(fila_arma)
+                    layout_fila_arma.setContentsMargins(0, 0, 0, 0)
+                    # Spacing muy bajo entre nombre y botones para maximizar espacio
+                    layout_fila_arma.setSpacing(2) 
                     
+                    # --- SOLUCIÓN PROBLEMA 1: TEXTO LARGO ---
                     lbl_nombre_arma = QLabel(nombre_arma)
-                    lbl_nombre_arma.setFixedWidth(70)
-                    lbl_nombre_arma.setStyleSheet("color: white; font-size: 10px;")
+                    # Mantenemos el ancho fijo para alinear columnas
+                    lbl_nombre_arma.setFixedWidth(70) 
+                    # ACTIVAMOS AJUSTE DE PALABRA: Si es muy largo, baja
+                    lbl_nombre_arma.setWordWrap(True) 
+                    # Forzamos alineación superior para que los botones no "floten" si el texto baja
+                    lbl_nombre_arma.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+                    # Estilo con pequeño padding inferior para cuando el texto baja
+                    lbl_nombre_arma.setStyleSheet("color: white; font-size: 10px; padding-bottom: 2px;")
 
-                # --- LÓGICA DE TOOLTIP ---
-                if "efecto" in datos_arma and datos_arma["efecto"]:
+                    # --- LÓGICA DE TOOLTIP (AMARILLO) ---
+                    if "efecto" in datos_arma and datos_arma["efecto"]:
+                        texto_tooltip = f"""
+                        <div style='
+                            background-color: #1E1E1E; 
+                            color: #FFD700; 
+                            padding: 5px; 
+                            border: 1px solid #555555;
+                            font-family: Arial; 
+                            font-size: 11pt;'>
+                            <b>{nombre_arma}</b><br>
+                            <span style='color: #FFFFFF;'>Efecto: {datos_arma['efecto']}</span>
+                        </div>
+                        """
+                        lbl_nombre_arma.setToolTip(texto_tooltip)
+                        lbl_nombre_arma.setCursor(Qt.CursorShape.WhatsThisCursor)
+
+                    # Se añade el nombre del arma al layout horizontal
+                    layout_fila_arma.addWidget(lbl_nombre_arma)
+
+                    # --- LÓGICA CONDICIONAL: ARMA DE FUEGO VS MELEE ---
+                    if datos_arma["max"] > 0:
+                        # --- MODO ARMA DE FUEGO: Dibujar contadores y botones ---
+                        lbl_val_arma = QLabel(str(datos_arma["actual"]))
+                        lbl_val_arma.setFixedWidth(25)
+                        lbl_val_arma.setStyleSheet("color: white; font-weight: bold; font-size: 12px;")
+                        # Alineado superior para coincidir con el nombre de 2 líneas si ocurre
+                        lbl_val_arma.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignCenter)
+                        
+                        self.widgets_referencia["armas"][nombre_arma] = lbl_val_arma
+
+                        # Botones con ancho fijo y alineación superior
+                        btn_menos_10 = QPushButton("-10")
+                        btn_menos_10.setObjectName("BtnAjuste")
+                        btn_menos_10.setFixedWidth(26)
+                        btn_menos_10.clicked.connect(lambda checked, p=personaje_obj, n=nombre_arma, c=-10, l=lbl_val_arma: 
+                                                     controlador.ajustar_municion_arma(p, n, c, l))
+                                                     
+                        btn_menos_1 = QPushButton("-1")
+                        btn_menos_1.setObjectName("BtnAjuste")
+                        btn_menos_1.setFixedWidth(26)
+                        btn_menos_1.clicked.connect(lambda checked, p=personaje_obj, n=nombre_arma, c=-1, l=lbl_val_arma: 
+                                                    controlador.ajustar_municion_arma(p, n, c, l))
+
+                        btn_max = QPushButton("MAX")
+                        btn_max.setObjectName("BtnAjuste")
+                        btn_max.setFixedWidth(32)
+                        btn_max.clicked.connect(lambda checked, p=personaje_obj, n=nombre_arma, l=lbl_val_arma: 
+                                                controlador.recargar_arma_maxima(p, n, l))
+
+                        layout_fila_arma.addWidget(lbl_val_arma)
+                        layout_fila_arma.addWidget(btn_menos_10)
+                        layout_fila_arma.addWidget(btn_menos_1)
+                        layout_fila_arma.addWidget(btn_max)
+                        # Stretch final para empujar todo a la izquierda en modo fuego
+                        layout_fila_arma.addStretch(1)
+                    else:
+                        # --- SOLUCIÓN PROBLEMA 2: MODO MELEE CENTRADO ---
+                        # Añadimos un stretch para empujar la etiqueta hacia el centro
+                        layout_fila_arma.addStretch(1) 
+                        
+                        lbl_melee = QLabel("Cuerpo a Cuerpo")
+                        # Estilo gris, itálica y AlignCenter del texto dentro del Label
+                        lbl_melee.setStyleSheet("color: #777777; font-size: 10px; font-style: italic;")
+                        # IMPORTANTE: Forzamos la alineación central del texto
+                        lbl_melee.setAlignment(Qt.AlignmentFlag.AlignCenter) 
+                        
+                        layout_fila_arma.addWidget(lbl_melee)
+                        
+                        # Añadimos otro stretch después para "encerrar" el label en el centro
+                        layout_fila_arma.addStretch(1) 
                     
-                    # Inyección de CSS y HTML directo al texto del Tooltip
-                    texto_tooltip = f"""
-                    <div style='
-                        background-color: #1E1E1E; 
-                        color: #00FFFF; 
-                        padding: 5px; 
-                        border: 1px solid #555555;
-                        font-family: Arial; 
-                        font-size: 11pt;'>
-                        <b>{nombre_arma}</b><br>
-                        <span style='color: #FFFFFF;'>Efecto: {datos_arma['efecto']}</span>
-                    </div>
-                    """
-                    
-                    lbl_nombre_arma.setToolTip(texto_tooltip)
-                    lbl_nombre_arma.setCursor(Qt.CursorShape.WhatsThisCursor)
-
-                    
-                    lbl_val_arma = QLabel(str(datos_arma["actual"]))
-                    lbl_val_arma.setFixedWidth(25)
-                    lbl_val_arma.setStyleSheet("color: white; font-weight: bold; font-size: 12px;")
-                    lbl_val_arma.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                    
-                    self.widgets_referencia["armas"][nombre_arma] = lbl_val_arma
-
-                    btn_menos_10 = QPushButton("-10")
-                    btn_menos_10.setObjectName("BtnAjuste")
-                    btn_menos_10.setFixedWidth(26)
-                    btn_menos_10.clicked.connect(lambda checked, p=personaje_obj, n=nombre_arma, c=-10, l=lbl_val_arma: 
-                                                 controlador.ajustar_municion_arma(p, n, c, l))
-                                                 
-                    btn_menos_1 = QPushButton("-1")
-                    btn_menos_1.setObjectName("BtnAjuste")
-                    btn_menos_1.setFixedWidth(26)
-                    btn_menos_1.clicked.connect(lambda checked, p=personaje_obj, n=nombre_arma, c=-1, l=lbl_val_arma: 
-                                                controlador.ajustar_municion_arma(p, n, c, l))
-
-                    btn_max = QPushButton("MAX")
-                    btn_max.setObjectName("BtnAjuste")
-                    btn_max.setFixedWidth(32)
-                    btn_max.clicked.connect(lambda checked, p=personaje_obj, n=nombre_arma, l=lbl_val_arma: 
-                                            controlador.recargar_arma_maxima(p, n, l))
-
-                    fila_arma.addWidget(lbl_nombre_arma)
-                    fila_arma.addWidget(lbl_val_arma)
-                    fila_arma.addWidget(btn_menos_10)
-                    fila_arma.addWidget(btn_menos_1)
-                    fila_arma.addWidget(btn_max)
-                    fila_arma.addStretch(1)
-                    layout_col_armas.addLayout(fila_arma)
+                    # Se añade la fila completa (con el nombre que hace wrap) a la columna vertical
+                    layout_col_armas.addWidget(fila_arma)
             else:
                 lbl_sin_armas = QLabel("Sin armas equipadas")
                 lbl_sin_armas.setStyleSheet("color: #777777; font-size: 10px; font-style: italic;")
                 layout_col_armas.addWidget(lbl_sin_armas)
 
+            # Stretch final para compactar todas las filas hacia arriba
             layout_col_armas.addStretch(1)
 
             # --- COLUMNA 4: ESTADOS Y DEBUFOS MULTIPLES ---
@@ -354,19 +391,41 @@ class PersonajeWidget(QFrame):
                         lbl_mej_tit.setStyleSheet(estilo_titulo_mej)
                         layout_v_individual.addWidget(lbl_mej_tit)
                     else:
-                        # Espaciador vertical en columnas siguientes para alinear texto con la columna 1
-                        # (Ajuste de 15 píxeles aprox. para compensar la altura del título)
                         layout_v_individual.addSpacing(15)
 
-                    # Formatear y añadir las mejoras de la sublista actual
-                    texto_sublista = "\n".join([f"• {mejora}" for mejora in sublista])
-                    lbl_texto_sublista = QLabel(texto_sublista)
-                    lbl_texto_sublista.setStyleSheet(estilo_texto_mej)
-                    lbl_texto_sublista.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-                    # No activamos setWordWrap para forzar que ocupen espacio horizontal y no vertical
-                    
-                    layout_v_individual.addWidget(lbl_texto_sublista)
+                    # --- NUEVA LÓGICA DE RENDERIZADO CON TOOLTIP ---
+                    for mejora in sublista:
+                        # Se extraen los datos del diccionario
+                        nombre_buff = mejora["nombre"]
+                        desc_buff = mejora["descripcion"]
+                        
+                        # Se crea la etiqueta solo con el nombre
+                        lbl_mejora = QLabel(f"• {nombre_buff}")
+                        lbl_mejora.setStyleSheet(estilo_texto_mej)
+                        lbl_mejora.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+                        
+                        # Inyección de CSS y HTML para la ventana flotante (Tooltip)
+                        texto_tooltip = f"""
+                        <div style='
+                            background-color: #1E1E1E; 
+                            color: #FFD700; 
+                            padding: 5px; 
+                            border: 1px solid #555555;
+                            font-family: Arial; 
+                            font-size: 11pt;'>
+                            <b>{nombre_buff}</b><br>
+                            <span style='color: #FFFFFF;'>{desc_buff}</span>
+                        </div>
+                        """
+                        lbl_mejora.setToolTip(texto_tooltip)
+                        lbl_mejora.setCursor(Qt.CursorShape.WhatsThisCursor)
+                        
+                        layout_v_individual.addWidget(lbl_mejora)
+
                     layout_v_individual.addStretch(1) # Stretch al final para compactar hacia arriba
+
+                    # Añadir la columna vertical completa al contenedor horizontal final
+                    layout_mej_final_horizontal.addWidget(col_widget_vertical)
 
                     # Añadir la columna vertical completa al contenedor horizontal final
                     layout_mej_final_horizontal.addWidget(col_widget_vertical)

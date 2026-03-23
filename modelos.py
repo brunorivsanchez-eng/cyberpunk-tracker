@@ -1,7 +1,12 @@
 class Personaje:
-    def __init__(self, nombre, max_hp, max_body_sp, max_head_sp, max_luck, move, armas=None, death_penalty=0, mejoras=None):
+    def __init__(self, nombre, max_hp, max_body_sp, max_head_sp, max_luck, move, 
+                 armas=None, death_penalty=0, mejoras=None, id_db=None, es_npc=False):
+        
+        self.id_db = id_db  # <- NUEVO: Almacena el ID (id_jugador o id_npc) de la base de datos
+        self.es_npc = es_npc # <- NUEVO: Identifica estructuralmente el origen del objeto
         self.nombre = nombre
-        #Barras 
+        
+        # Barras y Estadísticas
         self.max_hp = max_hp
         self.hp = max_hp
         self.max_body_sp = max_body_sp
@@ -12,8 +17,8 @@ class Personaje:
         self.luck = max_luck
         self.move = int(move)
         self.max_move = int(move)
-        #Otros
-        self.death_penalty = death_penalty
+        
+        # Otros
         self.death_penalty = int(death_penalty)
         self.armas = armas if armas is not None else {}
         self.mejoras = mejoras if mejoras is not None else []
@@ -54,6 +59,5 @@ class Personaje:
              print(f"Error: El atributo '{atributo}' no existe.")
              return
         valor_actual = getattr(self, atributo)
-        # Establecemos límites: mínimo 0, máximo 99
         nuevo_valor = max(0, min(99, valor_actual + cantidad_relativa))
         setattr(self, atributo, nuevo_valor)

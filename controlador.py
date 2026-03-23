@@ -1,7 +1,34 @@
-import json
 import os
+import psycopg
+from psycopg import OperationalError
+from psycopg.rows import dict_row
+from dotenv import load_dotenv
 from modelos import Personaje
 
+# Carga de variables de entorno desde el archivo local .env
+load_dotenv()
+
+# ==========================================
+# GESTIÓN DE BASE DE DATOS POSTGRESQL
+# ==========================================
+def conectar_bd():
+    """
+    Establece y retorna la conexión a la base de datos NeonDB.
+    Implementa manejo de errores y configura el retorno de diccionarios.
+    """
+    url_conexion = os.getenv("DATABASE_URL")
+    
+    if not url_conexion:
+        print("Error Crítico: Variable DATABASE_URL no encontrada en el entorno.")
+        return None
+
+    try:
+        # La conexión utiliza row_factory=dict_row para facilitar el mapeo de datos
+        conexion = psycopg.connect(url_conexion, row_factory=dict_row)
+        return conexion
+    except OperationalError as e:
+        print(f"Falla al conectar con la base de datos: {e}")
+        return None
 # ==========================================
 # GESTIÓN VISUAL Y DE INTERFAZ
 # ==========================================
@@ -137,71 +164,171 @@ def resetear_personaje(personaje_obj, dicc_widgets):
 # PERSISTENCIA DE DATOS (JSON)
 # ==========================================
 
-def guardar_partida(pjs, npcs, ruta_archivo="campana.json"):
-    datos = {"jugadores": [], "adversarios": []}
-    
-    for p in pjs:
-        datos["jugadores"].append({
-            "nombre": p.nombre,
-            "max_hp": p.max_hp, "hp": p.hp,
-            "max_body_sp": p.max_body_sp, "body_sp": p.body_sp,
-            "max_head_sp": p.max_head_sp, "head_sp": p.head_sp,
-            "max_luck": p.max_luck, "luck": p.luck,
-            "max_move": p.max_move, "move": p.move,
-            "death_penalty": p.death_penalty,
-            "armas": getattr(p, "armas", {})
-        })
-        
-    for p in npcs:
-        datos["adversarios"].append({
-            "nombre": p.nombre,
-            "max_hp": p.max_hp, "hp": p.hp,
-            "max_body_sp": p.max_body_sp, "body_sp": p.body_sp,
-            "max_head_sp": p.max_head_sp, "head_sp": p.head_sp,
-            "max_luck": p.max_luck, "luck": p.luck,
-            "max_move": p.max_move, "move": p.move,
-            "death_penalty": p.death_penalty,
-            "armas": getattr(p, "armas", {}),
-            "mejoras": getattr(p, "mejoras", [])
-        })
-        
-    with open(ruta_archivo, 'w', encoding='utf-8') as f:
-        json.dump(datos, f, indent=4, ensure_ascii=False)
-
-def cargar_partida(ruta_archivo="campana.json"):
-    if not os.path.exists(ruta_archivo):
+def cargar_partida_db():
+    """
+    Extrae los jugadores (estado dinámico) y los NPCs (plantillas estáticas)
+    desde PostgreSQL y construye las listas de objetos Personaje.
+    """
+    conexion = conectar_bd()
+    if not conexion:
         return None, None
-        
-    with open(ruta_archivo, 'r', encoding='utf-8') as f:
-        datos = json.load(f)
-        
+
     pjs_cargados = []
-    for d in datos.get("jugadores", []):
-        pj = Personaje(
-            d["nombre"], d["max_hp"], d["max_body_sp"], 
-            d["max_head_sp"], d["max_luck"], d["max_move"], 
-            d.get("armas", {}), d.get("death_penalty", 0)
-        )
-        pj.hp = d["hp"]
-        pj.body_sp = d["body_sp"]
-        pj.head_sp = d["head_sp"]
-        pj.luck = d["luck"]
-        pj.move = d["move"]
-        pjs_cargados.append(pj)
-        
     npcs_cargados = []
-    for d in datos.get("adversarios", []):
-        npc = Personaje(
-            d["nombre"], d["max_hp"], d["max_body_sp"], 
-            d["max_head_sp"], d["max_luck"], d["max_move"], 
-            d.get("armas", {}), d.get("death_penalty", 0),
-            d.get("mejoras", [])
-        )
-        npc.hp = d["hp"]
-        npc.body_sp = d["body_sp"]
-        npc.head_sp = d["head_sp"]
-        npc.luck = d["luck"]
-        npc.move = d["move"]
-        npcs_cargados.append(npc)
-        
+
+    try:
+        # --- 1. CARGA DE JUGADORES (Estado Dinámico) ---
+        with conexion.cursor() as cursor:
+            cursor.execute("SELECT * FROM jugadores;")
+            filas_jugadores = cursor.fetchall()
+
+            for j in filas_jugadores:
+                # Consulta para obtener el inventario y concatenar múltiples propiedades
+                cursor.execute("""
+                    SELECT pa.nombre, ij.balas_actuales, pa.max_balas,
+                           COALESCE(string_agg(pr.descripcion, ' | '), '') as efecto
+                    FROM inventario_jugadores ij
+                    JOIN plantillas_armas pa ON ij.id_plantilla = pa.id_plantilla
+                    LEFT JOIN armas_propiedades ap ON pa.id_plantilla = ap.id_plantilla
+                    LEFT JOIN propiedades_armas pr ON ap.id_propiedad = pr.id_propiedad
+                    WHERE ij.id_jugador = %s
+                    GROUP BY pa.nombre, ij.balas_actuales, pa.max_balas;
+                """, (j['id_jugador'],))
+                
+                armas_db = cursor.fetchall()
+                dicc_armas = {}
+                for arma in armas_db:
+                    dicc_armas[arma['nombre']] = {
+                        "actual": arma['balas_actuales'],
+                        "max": arma['max_balas'],
+                        "efecto": arma['efecto'] if arma['efecto'] else ""
+                    }
+
+                pj = Personaje(
+                    nombre=j['nombre'], max_hp=j['max_hp'], max_body_sp=j['max_body_sp'],
+                    max_head_sp=j['max_head_sp'], max_luck=j['max_luck'], move=j['max_move'],
+                    armas=dicc_armas, death_penalty=j['death_penalty'], 
+                    id_db=j['id_jugador'], es_npc=False
+                )
+                
+                # Inyección del estado actual guardado en la BD
+                pj.hp = j['hp']
+                pj.body_sp = j['body_sp']
+                pj.head_sp = j['head_sp']
+                pj.luck = j['luck']
+                pj.move = j['move']
+                
+                pjs_cargados.append(pj)
+
+        # --- 2. CARGA DE NPCs (Plantillas Estáticas) ---
+        with conexion.cursor() as cursor:
+            cursor.execute("SELECT * FROM npc;")
+            filas_npc = cursor.fetchall()
+
+            for n in filas_npc:
+                # Consulta de armas (Se asume que la plantilla inicia con cargador lleno)
+                cursor.execute("""
+                    SELECT pa.nombre, pa.max_balas,
+                           COALESCE(string_agg(pr.descripcion, ' | '), '') as efecto
+                    FROM npc_armas na
+                    JOIN plantillas_armas pa ON na.id_plantilla = pa.id_plantilla
+                    LEFT JOIN armas_propiedades ap ON pa.id_plantilla = ap.id_plantilla
+                    LEFT JOIN propiedades_armas pr ON ap.id_propiedad = pr.id_propiedad
+                    WHERE na.id_npc = %s
+                    GROUP BY pa.nombre, pa.max_balas;
+                """, (n['id_npc'],))
+                
+                armas_db = cursor.fetchall()
+                dicc_armas = {}
+                for arma in armas_db:
+                    dicc_armas[arma['nombre']] = {
+                        "actual": arma['max_balas'], 
+                        "max": arma['max_balas'],
+                        "efecto": arma['efecto'] if arma['efecto'] else ""
+                    }
+
+                # Consulta de Mejoras Cibernéticas / Buffos
+                
+                cursor.execute("""
+                    SELECT b.nombre, b.descripcion 
+                    FROM npc_buffos nb
+                    JOIN buffos b ON nb.id_buffo = b.id_buffo
+                    WHERE nb.id_npc = %s;
+                """, (n['id_npc'],))
+                
+                buffos_db = cursor.fetchall()
+                # CÓDIGO CORREGIDO: Construye una lista de diccionarios
+                lista_mejoras = [{"nombre": b["nombre"], "descripcion": b["descripcion"]} for b in buffos_db]
+
+                npc_obj = Personaje(
+                    nombre=n['nombre'], max_hp=n['max_hp'], max_body_sp=n['max_body_sp'],
+                    max_head_sp=n['max_head_sp'], max_luck=0, move=n['max_move'],
+                    armas=dicc_armas, death_penalty=0, mejoras=lista_mejoras, 
+                    id_db=n['id_npc'], es_npc=True
+                )
+                
+                # Las plantillas siempre se instancian con la vida y armadura al máximo
+                npc_obj.hp = n['max_hp']
+                npc_obj.body_sp = n['max_body_sp']
+                npc_obj.head_sp = n['max_head_sp']
+                npc_obj.move = n['max_move']
+
+                npcs_cargados.append(npc_obj)
+
+    except Exception as e:
+        print(f"Error Crítico al ejecutar consultas SQL: {e}")
+    finally:
+        conexion.close()
+
     return pjs_cargados, npcs_cargados
+
+def guardar_partida_db(pjs, npcs):
+    """
+    Persiste el estado dinámico de los jugadores en PostgreSQL.
+    Omite la lista de npcs por ser plantillas de solo lectura.
+    """
+    conexion = conectar_bd()
+    if not conexion:
+        print("Error: Imposible establecer conexión. No se guardó la partida.")
+        return
+
+    try:
+        with conexion.cursor() as cursor:
+            for p in pjs:
+                # Verificación de integridad: Evita fallos si se inserta un objeto sin ID
+                if getattr(p, 'id_db', None) is None:
+                    print(f"Advertencia: Jugador '{p.nombre}' carece de id_db. Omisión de guardado.")
+                    continue
+                
+                # 1. Actualización de Atributos Vitales
+                cursor.execute("""
+                    UPDATE jugadores 
+                    SET hp = %s, body_sp = %s, head_sp = %s, 
+                        luck = %s, move = %s, death_penalty = %s
+                    WHERE id_jugador = %s;
+                """, (p.hp, p.body_sp, p.head_sp, p.luck, p.move, p.death_penalty, p.id_db))
+
+                # 2. Actualización de Munición
+                # Se utiliza la cláusula FROM para emparejar el nombre del arma en memoria 
+                # con su respectivo id_plantilla en la base de datos.
+                if hasattr(p, "armas"):
+                    for nombre_arma, datos in p.armas.items():
+                        cursor.execute("""
+                            UPDATE inventario_jugadores ij
+                            SET balas_actuales = %s
+                            FROM plantillas_armas pa
+                            WHERE ij.id_plantilla = pa.id_plantilla
+                              AND ij.id_jugador = %s
+                              AND pa.nombre = %s;
+                        """, (datos["actual"], p.id_db, nombre_arma))
+            
+            # Confirmación de la transacción completa
+            conexion.commit()
+            print("Estado de jugadores guardado exitosamente en NeonDB.")
+
+    except Exception as e:
+        # Reversión en caso de falla estructural
+        conexion.rollback()
+        print(f"Falla Crítica durante transacción DML (UPDATE): {e}")
+    finally:
+        conexion.close()

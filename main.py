@@ -29,10 +29,10 @@ class MainWindow(QMainWindow):
         self.layout_lista.setAlignment(Qt.AlignmentFlag.AlignTop)
         
        # ---  Carga desde JSON ---
-        pjs_cargados, npcs_cargados = controlador.cargar_partida()
+        pjs_cargados, npcs_cargados = controlador.cargar_partida_db()
         
         if pjs_cargados is not None and npcs_cargados is not None:
-            # Si el archivo existe, usamos los datos guardados
+            # Si la conexión es exitosa, usamos los datos extraídos de NeonDB
             self.pjs = pjs_cargados
             self.npcs = npcs_cargados
         else:
@@ -82,7 +82,7 @@ class MainWindow(QMainWindow):
 
     # Intercepción del evento de cierre ---
     def closeEvent(self, event):
-        controlador.guardar_partida(self.pjs, self.npcs)
+        controlador.guardar_partida_db(self.pjs, self.npcs)
         event.accept()
 
 if __name__ == "__main__":
