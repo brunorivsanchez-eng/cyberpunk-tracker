@@ -23,7 +23,7 @@ class Personaje:
         self.armas = armas if armas is not None else {}
         self.mejoras = mejoras if mejoras is not None else []
 
-    def aplicar_impacto(self, danio_bruto, es_cabeza=False, es_melee=False, es_directo=False):
+    def aplicar_impacto(self, danio_bruto, es_cabeza=False, es_melee=False, es_directo=False, reduccion_sp=1):
         if es_directo:
             self.hp = max(0, self.hp - danio_bruto)
             return
@@ -40,9 +40,9 @@ class Personaje:
         
         if danio_bruto > 0:
             if es_cabeza:
-                self.head_sp = max(0, self.head_sp - 1)
+                self.head_sp = max(0, self.head_sp - reduccion_sp)
             else:
-                self.body_sp = max(0, self.body_sp - 1)
+                self.body_sp = max(0, self.body_sp - reduccion_sp)
 
     def curar(self, cantidad):
         self.hp = min(self.max_hp, self.hp + cantidad)

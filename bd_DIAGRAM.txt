@@ -47,6 +47,8 @@ CREATE TABLE plantillas_armas (
 CREATE TABLE npc (
     id_npc SERIAL PRIMARY KEY,
     nombre VARCHAR(100) UNIQUE NOT NULL,
+    tier INTEGER DEFAULT 1 CHECK (tier BETWEEN 1 AND 4),
+    faccion VARCHAR(50) DEFAULT 'Genérico',
     max_hp INTEGER NOT NULL,
     max_body_sp INTEGER DEFAULT 0,
     max_head_sp INTEGER DEFAULT 0,
@@ -184,9 +186,10 @@ INSERT INTO buffos (nombre, descripcion) VALUES
 ('Óptica Kiroshi', 'Visión térmica. Ignora penalizadores por humo u oscuridad.');
 
 -- 2. Creación de un NPC de prueba (Plantilla/Bestiario)
-INSERT INTO npc (nombre, max_hp, max_body_sp, max_head_sp, max_move) VALUES 
-('Matón Corporativo', 35, 7, 7, 5),
-('Pandillero Callejero', 25, 4, 0, 6);
+-- 2. Creación de NPCs de prueba (Plantilla/Bestiario)
+INSERT INTO npc (nombre, tier, faccion, max_hp, max_body_sp, max_head_sp, max_move) VALUES 
+('Matón Corporativo', 2, 'Corporativo', 35, 7, 7, 5),
+('Pandillero Callejero', 1, 'Maelstrom', 25, 4, 4, 6);
 
 -- 3. Equipar armamento a los NPCs
 -- El matón usará un Fusil de Asalto. El pandillero usará una Pistola pesada y un Arma cac.
@@ -195,11 +198,15 @@ INSERT INTO npc_armas (id_npc, id_plantilla) VALUES
 ((SELECT id_npc FROM npc WHERE nombre = 'Pandillero Callejero'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola pesada')),
 ((SELECT id_npc FROM npc WHERE nombre = 'Pandillero Callejero'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Arma cac (Media)'));
 
--- 4. Asignar mejoras (Buffos) a los NPCs
--- El matón tendrá Sandevistan y Óptica Kiroshi.
+-- 4. Asignar mejoras según Identidad de Facción
 INSERT INTO npc_buffos (id_npc, id_buffo) VALUES 
-((SELECT id_npc FROM npc WHERE nombre = 'Matón Corporativo'), (SELECT id_buffo FROM buffos WHERE nombre = 'Sandevistan')),
-((SELECT id_npc FROM npc WHERE nombre = 'Matón Corporativo'), (SELECT id_buffo FROM buffos WHERE nombre = 'Óptica Kiroshi'));
+-- El Matón Corporativo (Tier 2) recibe el Sandevistan (Agilidad Corporativa)
+((SELECT id_npc FROM npc WHERE nombre = 'Matón Corporativo'), 
+ (SELECT id_buffo FROM buffos WHERE nombre = 'Sandevistan')),
+
+-- El Pandillero Callejero (Maelstrom - Tier 1) recibe la Óptica Kiroshi (Toque del Clan)
+((SELECT id_npc FROM npc WHERE nombre = 'Pandillero Callejero'), 
+ (SELECT id_buffo FROM buffos WHERE nombre = 'Óptica Kiroshi'));
 
 -- 5. Creación de un Jugador de prueba (Estado Activo)
 -- Note que aquí sí se declaran los valores actuales (hp, body_sp) iguales a los máximos al inicio.
