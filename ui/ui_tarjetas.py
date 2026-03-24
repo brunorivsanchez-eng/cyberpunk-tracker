@@ -1,90 +1,87 @@
+# --- ui/ui_tarjetas.py ---
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, 
                              QFrame, QLabel, QPushButton, 
                              QComboBox, QLineEdit, QProgressBar, 
-                             QSizePolicy,)
-from PyQt6.QtCore import (Qt , pyqtSignal)
+                             QSizePolicy)
+from PyQt6.QtCore import Qt, pyqtSignal
 import controlador
 
 class NoScrollComboBox(QComboBox):
     def wheelEvent(self, event):
         event.ignore()
 
-class PersonajeWidget(QFrame):
-    solicitar_eliminacion = pyqtSignal(object) # object recibirá el personaje_obj
-    def __init__(self, personaje_obj, cat_temporales, cat_permanentes, es_npc=False):
+# =============================================================================
+# CLASE BASE: LA PLANTILLA COMPARTIDA (TEMPLATE METHOD PATTERN)
+# =============================================================================
+class TarjetaBase(QFrame):
+    solicitar_eliminacion = pyqtSignal(object) 
+    
+    def __init__(self, personaje_obj, cat_temporales, cat_permanentes):
         super().__init__()
         self.personaje_obj = personaje_obj
-        self.es_npc = es_npc
+        self.cat_temporales = cat_temporales
+        self.cat_permanentes = cat_permanentes
         self.widgets_referencia = {}
+        self.guarda_estados_db = False 
         
         self.setObjectName("ContenedorPersonaje")
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         
-        # --- NUEVO: BORDE DORADO SI ES BOSS ---
-        # En ui/ui_tarjetas.py -> __init__
-        if es_npc and getattr(personaje_obj, 'es_boss', False):
-            self.setStyleSheet("""
-                QFrame#ContenedorPersonaje { 
-                    border: 2px solid #FF0000;  /* Borde Rojo Neón para el Boss */
-                    background-color: #0A0000;  /* Fondo casi negro con tinte rojo */
-                }
-            """)
-        # ----------------------------------------
+        self._aplicar_estilos_base()
         
-        layout_principal = QVBoxLayout(self)
-        layout_principal.setContentsMargins(8, 8, 8, 8)
-        layout_principal.setSpacing(5)
+        self.layout_principal = QVBoxLayout(self)
+        self.layout_principal.setContentsMargins(8, 8, 8, 8)
+        self.layout_principal.setSpacing(5)
         
-        # --- CABECERA: NOMBRE Y BOTÓN RESET ---
+        self._construir_cabecera()
+        self._construir_fila_hp()
+        self._construir_stats_ampliados()
+        
+        self.sincronizar_interfaz()
+
+    def _aplicar_estilos_base(self): pass
+    def _agregar_botones_cabecera(self, layout): pass
+    def _agregar_botones_hp(self, layout): pass
+    def _agregar_elementos_col_der(self, layout): self._construir_fila_fuego(layout)
+    def _agregar_columnas_extra(self, layout): pass
+    def _obtener_color_identidad(self): return "#FFFFFF"
+    
+    def _obtener_stats_col_izq(self):
+        return [
+            ("BODY SP", "body_sp", "max_body_sp"),
+            ("HEAD SP", "head_sp", "max_head_sp"),
+            ("MOVE", "move", "max_move")
+        ]
+
+    def _construir_cabecera(self):
         fila_cabecera = QHBoxLayout()
         
-        lbl_nombre = QLabel(personaje_obj.nombre.upper())
-        lbl_nombre.setObjectName("NombrePJ")
+        lbl_nombre = QLabel(self.personaje_obj.nombre.upper())
+        lbl_nombre.setObjectName("NombrePJ") 
         self.widgets_referencia["nombre"] = lbl_nombre 
         
         btn_reset = QPushButton("🔄RESET🔄")
         btn_reset.setFixedWidth(65)
-        btn_reset.setObjectName("BtnReset")
+        btn_reset.setObjectName("BtnReset") 
         btn_reset.clicked.connect(lambda checked: self._ui_resetear())
         
         fila_cabecera.addWidget(lbl_nombre)
         fila_cabecera.addStretch(1)
         fila_cabecera.addWidget(btn_reset)
-        # --- NUEVO: BOTÓN 'X' PARA ELIMINAR NPC ---
-        if es_npc:
-            btn_cerrar = QPushButton("❌")
-            btn_cerrar.setFixedSize(22, 22)
-            btn_cerrar.setStyleSheet("""
-                QPushButton {
-                    background-color: transparent;
-                    color: #8B0000;
-                    border: 1px solid #8B0000;
-                    border-radius: 4px;
-                    font-weight: bold;
-                    font-size: 10px;
-                }
-                QPushButton:hover {
-                    background-color: #8B0000;
-                    color: white;
-                }
-            """)
-            # Emitir la señal de borrado pasándole el personaje actual
-            # Añade el espacio entre lambda y checked
-            btn_cerrar.clicked.connect(lambda checked: self.solicitar_eliminacion.emit(personaje_obj))
-            fila_cabecera.addWidget(btn_cerrar)
-        # ----------------------------------------
-        layout_principal.addLayout(fila_cabecera)
+        
+        self._agregar_botones_cabecera(fila_cabecera)
+        self.layout_principal.addLayout(fila_cabecera)
 
-        # --- FILA 1: HP Y COMBATE ---
+    def _construir_fila_hp(self):
         fila_hp = QHBoxLayout()
         
         lbl_hp = QLabel("HP")
         lbl_hp.setFixedWidth(60)
-        lbl_hp.setObjectName("LblStatTit")
+        lbl_hp.setObjectName("LblStatTit") 
         
         barra_hp = QProgressBar()
-        barra_hp.setRange(0, personaje_obj.max_hp)
-        barra_hp.setValue(personaje_obj.hp)
+        barra_hp.setRange(0, self.personaje_obj.max_hp)
+        barra_hp.setValue(self.personaje_obj.hp)
         barra_hp.setFormat("%v / %m") 
         barra_hp.setFixedWidth(225)
         barra_hp.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
@@ -99,10 +96,8 @@ class PersonajeWidget(QFrame):
         fila_hp.addWidget(self.input_dano)
 
         ataques = [
-            ("Cuerpo", False, False, False),
-            ("Cabeza", True, False, False),
-            ("M. Cuerpo", False, True, False),
-            ("M. Cabeza", True, True, False),
+            ("Cuerpo", False, False, False), ("Cabeza", True, False, False),
+            ("M. Cuerpo", False, True, False), ("M. Cabeza", True, True, False),
             ("⚡ Directo", False, False, True)
         ]
 
@@ -111,502 +106,371 @@ class PersonajeWidget(QFrame):
             btn.clicked.connect(lambda checked, c=cabeza, m=melee, d=directo: self._ui_procesar_ataque(c, m, d))
             fila_hp.addWidget(btn)
 
-        if not es_npc:
-            btn_curar = QPushButton("💚 Curar")
-            btn_curar.setObjectName("BtnCurar")
-            btn_curar.clicked.connect(lambda checked: self._ui_procesar_curacion())
-            fila_hp.addWidget(btn_curar)
-
+        self._agregar_botones_hp(fila_hp) 
         fila_hp.addStretch(1)
-        layout_principal.addLayout(fila_hp)
+        self.layout_principal.addLayout(fila_hp)
 
-        # --- FILA 2: ESTADÍSTICAS AMPLIADAS ---
-        layout_stats_ampliado = QHBoxLayout()
-        layout_stats_ampliado.setContentsMargins(0, 0, 0, 0)
-        layout_stats_ampliado.setSpacing(25)
+    def _construir_stats_ampliados(self):
+        layout_stats = QHBoxLayout()
+        layout_stats.setContentsMargins(0, 0, 0, 0)
+        layout_stats.setSpacing(25)
         
-        # COLUMNA IZQUIERDA: SP Y SUERTE
-        columna_izquierda = QWidget()
-        layout_col_izq = QVBoxLayout(columna_izquierda)
-        layout_col_izq.setContentsMargins(0, 0, 0, 0)
-        layout_col_izq.setSpacing(5)
-
-        stats_secundarios = [
-            ("BODY SP", "body_sp", "max_body_sp"),
-            ("HEAD SP", "head_sp", "max_head_sp"),
-            ("MOVE", "move", "max_move")
-        ]
-        if not es_npc:
-            stats_secundarios.append(("LUCK", "luck", "max_luck"))
-
-        for nombre_ui, attr, attr_max in stats_secundarios:
+        col_izq = QWidget()
+        l_izq = QVBoxLayout(col_izq)
+        l_izq.setContentsMargins(0, 0, 0, 0)
+        for nom_ui, attr, attr_max in self._obtener_stats_col_izq():
             fila = QHBoxLayout()
-            
-            lbl = QLabel(nombre_ui)
+            lbl = QLabel(nom_ui)
             lbl.setFixedWidth(60)
-            lbl.setObjectName("LblStatTit")
+            lbl.setObjectName("LblStatTit") 
+            
+            val_max = getattr(self.personaje_obj, attr_max)
             
             barra = QProgressBar()
-            barra.setRange(0, getattr(personaje_obj, attr_max))
-            barra.setValue(getattr(personaje_obj, attr))
-            barra.setFormat("%v / %m") 
-            barra.setObjectName(f"Barra{attr.replace('_', '').upper()}")
+            # Si el max es 0, le decimos al motor que es 1 para detener la animación,
+            # pero forzamos el texto visual a usar la variable real val_max.
+            barra.setRange(0, val_max if val_max > 0 else 1)
+            barra.setValue(getattr(self.personaje_obj, attr))
+            barra.setFormat(f"%v / {val_max}") 
+            # -------------------------------------------------
+            
             barra.setFixedWidth(115)
+            barra.setObjectName(f"Barra{attr.replace('_', '').upper()}") 
             self.widgets_referencia[attr] = barra
             
-            btn_menos = QPushButton("-")
-            btn_menos.setObjectName("BtnAjuste")
-            btn_menos.setFixedWidth(24)
-            btn_menos.clicked.connect(lambda checked, a=attr, cant=-1: self._ui_ajustar_stat(a, cant))
+            b_menos = QPushButton("-")
+            b_menos.setFixedWidth(24)
+            b_menos.setObjectName("BtnAjuste") 
+            b_menos.clicked.connect(lambda checked, a=attr, c=-1: self._ui_ajustar_stat(a, c))
             
-            btn_mas = QPushButton("+")
-            btn_mas.setObjectName("BtnAjuste")
-            btn_mas.setFixedWidth(24)
-            btn_mas.clicked.connect(lambda checked, a=attr, cant=1: self._ui_ajustar_stat(a, cant))
+            b_mas = QPushButton("+")
+            b_mas.setFixedWidth(24)
+            b_mas.setObjectName("BtnAjuste") 
+            b_mas.clicked.connect(lambda checked, a=attr, c=1: self._ui_ajustar_stat(a, c))
 
             fila.addWidget(lbl)
             fila.addWidget(barra)
-            fila.addWidget(btn_menos)
-            fila.addWidget(btn_mas)
+            fila.addWidget(b_menos)
+            fila.addWidget(b_mas)
             fila.addStretch(1)
-            layout_col_izq.addLayout(fila)
+            l_izq.addLayout(fila)
 
-        # --- COLUMNA 2: MUERTE Y FUEGO ---
-        columna_derecha = QWidget()
-        layout_col_der = QVBoxLayout(columna_derecha)
-        layout_col_der.setContentsMargins(0, 0, 0, 0)
-        layout_col_der.setSpacing(4)
+        col_der = QWidget()
+        l_der = QVBoxLayout(col_der)
+        l_der.setContentsMargins(0, 0, 0, 0)
+        self._agregar_elementos_col_der(l_der) 
+        l_der.addStretch(1)
 
-        if not es_npc:
-            fila_death = QHBoxLayout()
-            lbl_death_tit = QLabel("💀☠️💀")
-            lbl_death_tit.setFixedWidth(60)
-            lbl_death_tit.setObjectName("LblStatTit")
+        col_armas = self._construir_columna_armas()
+        col_estados = self._construir_columna_estados()
 
-            lbl_val_death = QLabel(str(personaje_obj.death_penalty))
-            lbl_val_death.setFixedWidth(25)
-            lbl_val_death.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            lbl_val_death.setObjectName("ValorDeathPenalty")
-            self.widgets_referencia["death_penalty"] = lbl_val_death
+        layout_stats.addWidget(col_izq)
+        layout_stats.addWidget(col_der)
+        layout_stats.addWidget(col_armas)
+        layout_stats.addWidget(col_estados)
+        self._agregar_columnas_extra(layout_stats) 
+        layout_stats.addStretch(1)
+        
+        self.layout_principal.addLayout(layout_stats)
 
-            btn_menos_d = QPushButton("-")
-            btn_menos_d.setObjectName("BtnAjuste")
-            btn_menos_d.setFixedWidth(24)
-            btn_menos_d.clicked.connect(lambda checked, c=-1: self._ui_ajustar_simple("death_penalty", c))
-            
-            btn_mas_d = QPushButton("+")
-            btn_mas_d.setObjectName("BtnAjuste")
-            btn_mas_d.setFixedWidth(24)
-            btn_mas_d.clicked.connect(lambda checked, c=1: self._ui_ajustar_simple("death_penalty", c))
+    def _construir_fila_fuego(self, layout):
+        fila = QHBoxLayout()
+        lbl_fuego = QLabel("🔥Fire🔥")
+        lbl_fuego.setFixedWidth(60)
+        lbl_fuego.setObjectName("LblFuegoTit") 
 
-            fila_death.addWidget(lbl_death_tit)
-            fila_death.addWidget(lbl_val_death)
-            fila_death.addWidget(btn_menos_d)
-            fila_death.addWidget(btn_mas_d)
-            fila_death.addStretch(1)
-            layout_col_der.addLayout(fila_death)
+        b5 = QPushButton("🔥")
+        b5.setFixedWidth(38)
+        b5.setObjectName("BtnFuego") 
+        b5.clicked.connect(lambda checked: self._ui_dano_fijo(5))
 
-        # Fila Fuego
-        fila_fuego = QHBoxLayout()
-        lbl_fuego_tit = QLabel("🔥Fire🔥")
-        lbl_fuego_tit.setFixedWidth(60)
-        lbl_fuego_tit.setObjectName("LblFuegoTit")
+        b10 = QPushButton("🔥🔥🔥")
+        b10.setFixedWidth(50)
+        b10.setObjectName("BtnFuego") 
+        b10.clicked.connect(lambda checked: self._ui_dano_fijo(10))
 
-        btn_fuego_5 = QPushButton("🔥")
-        btn_fuego_5.setObjectName("BtnFuego")
-        btn_fuego_5.setFixedWidth(38)
-        btn_fuego_5.clicked.connect(lambda checked, c=5: self._ui_dano_fijo(c))
+        fila.addWidget(lbl_fuego)
+        fila.addWidget(b5)
+        fila.addWidget(b10)
+        fila.addStretch(1)
+        layout.addLayout(fila)
 
-        btn_fuego_10 = QPushButton("🔥🔥🔥")
-        btn_fuego_10.setObjectName("BtnFuego")
-        btn_fuego_10.setFixedWidth(50)
-        btn_fuego_10.clicked.connect(lambda checked, c=10: self._ui_dano_fijo(c))
-
-        fila_fuego.addWidget(lbl_fuego_tit)
-        fila_fuego.addWidget(btn_fuego_5)
-        fila_fuego.addWidget(btn_fuego_10)
-        fila_fuego.addStretch(1)
-        layout_col_der.addLayout(fila_fuego)
-        layout_col_der.addStretch(1)
-
-        # --- COLUMNA 3: MUNICIÓN DINÁMICA ---
-        columna_armas = QWidget()
-        layout_col_armas = QVBoxLayout(columna_armas)
-        layout_col_armas.setContentsMargins(15, 0, 0, 0)
-        layout_col_armas.setSpacing(4)
-
-        lbl_armas_tit = QLabel("MUNICIÓN")
-        lbl_armas_tit.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lbl_armas_tit.setObjectName("TituloColumnaArmas")
-        layout_col_armas.addWidget(lbl_armas_tit)
-
+    def _construir_columna_armas(self):
+        w = QWidget()
+        l = QVBoxLayout(w)
+        l.setContentsMargins(15, 0, 0, 0)
+        lbl_tit = QLabel("MUNICIÓN")
+        lbl_tit.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        lbl_tit.setObjectName("TituloColumnaArmas") 
+        l.addWidget(lbl_tit)
+        
         self.widgets_referencia["armas"] = {}
+        if hasattr(self.personaje_obj, "armas") and self.personaje_obj.armas:
+            for n_arma, datos in self.personaje_obj.armas.items():
+                fila = QHBoxLayout()
+                lbl_n = QLabel(n_arma)
+                lbl_n.setFixedWidth(70)
+                lbl_n.setWordWrap(True)
+                lbl_n.setObjectName("LblNombreArma") 
 
-        if hasattr(personaje_obj, "armas") and personaje_obj.armas:
-            for nombre_arma, datos_arma in personaje_obj.armas.items():
-                fila_arma = QWidget()
-                layout_fila_arma = QHBoxLayout(fila_arma)
-                layout_fila_arma.setContentsMargins(0, 0, 0, 0)
-                layout_fila_arma.setSpacing(2) 
-                
-                lbl_nombre_arma = QLabel(nombre_arma)
-                lbl_nombre_arma.setFixedWidth(70) 
-                lbl_nombre_arma.setWordWrap(True) 
-                lbl_nombre_arma.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-                lbl_nombre_arma.setObjectName("LblNombreArma")
-
-                if "efecto" in datos_arma and datos_arma["efecto"]:
+                # --- RESTAURACIÓN DE TOOLTIP DE ARMAS ---
+                if "efecto" in datos and datos["efecto"]:
                     texto_tooltip = f"""
                     <div style='background-color: #1E1E1E; color: #FFD700; padding: 5px; border: 1px solid #555555; font-family: Arial; font-size: 12px;'>
-                        <b>{nombre_arma}</b><br>
-                        <span style='color: #FFFFFF;'>Efecto: {datos_arma['efecto']}</span>
+                        <b>{n_arma}</b><br>
+                        <span style='color: #FFFFFF;'>Efecto: {datos['efecto']}</span>
                     </div>
                     """
-                    lbl_nombre_arma.setToolTip(texto_tooltip)
-                    lbl_nombre_arma.setCursor(Qt.CursorShape.WhatsThisCursor)
+                    lbl_n.setToolTip(texto_tooltip)
+                    lbl_n.setCursor(Qt.CursorShape.WhatsThisCursor)
+                # ----------------------------------------
 
-                layout_fila_arma.addWidget(lbl_nombre_arma)
-
-                if datos_arma["max"] > 0:
-                    lbl_val_arma = QLabel(str(datos_arma["actual"]))
-                    lbl_val_arma.setFixedWidth(25)
-                    lbl_val_arma.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignCenter)
-                    lbl_val_arma.setObjectName("LblValArma")
-                    
-                    self.widgets_referencia["armas"][nombre_arma] = lbl_val_arma
-
-                    btn_menos_10 = QPushButton("-10")
-                    btn_menos_10.setObjectName("BtnAjuste")
-                    btn_menos_10.setFixedWidth(26)
-                    btn_menos_10.clicked.connect(lambda checked, n=nombre_arma, c=-10: self._ui_ajustar_municion(n, c))
-                                                 
-                    btn_menos_1 = QPushButton("-1")
-                    btn_menos_1.setObjectName("BtnAjuste")
-                    btn_menos_1.setFixedWidth(26)
-                    btn_menos_1.clicked.connect(lambda checked, n=nombre_arma, c=-1: self._ui_ajustar_municion(n, c))
-
-                    btn_max = QPushButton("MAX")
-                    btn_max.setObjectName("BtnAjuste")
-                    btn_max.setFixedWidth(32)
-                    btn_max.clicked.connect(lambda checked, n=nombre_arma: self._ui_recargar_max(n))
-
-                    layout_fila_arma.addWidget(lbl_val_arma)
-                    layout_fila_arma.addWidget(btn_menos_10)
-                    layout_fila_arma.addWidget(btn_menos_1)
-                    layout_fila_arma.addWidget(btn_max)
-                    layout_fila_arma.addStretch(1)
-                else:
-                    layout_fila_arma.addStretch(1) 
-                    lbl_melee = QLabel("Cuerpo a Cuerpo")
-                    lbl_melee.setAlignment(Qt.AlignmentFlag.AlignCenter) 
-                    lbl_melee.setObjectName("LblTextoGris")
-                    layout_fila_arma.addWidget(lbl_melee)
-                    layout_fila_arma.addStretch(1) 
+                fila.addWidget(lbl_n)
                 
-                layout_col_armas.addWidget(fila_arma)
+                if datos["max"] > 0:
+                    lbl_v = QLabel(str(datos["actual"]))
+                    lbl_v.setFixedWidth(25)
+                    lbl_v.setObjectName("LblValArma") 
+                    self.widgets_referencia["armas"][n_arma] = lbl_v
+                    
+                    b_10 = QPushButton("-10")
+                    b_10.setFixedWidth(26)
+                    b_10.setObjectName("BtnAjuste") 
+                    b_10.clicked.connect(lambda checked, n=n_arma: self._ui_ejecutar_disparo(n, 10))
+                    
+                    b_1 = QPushButton("-1")
+                    b_1.setFixedWidth(26)
+                    b_1.setObjectName("BtnAjuste") 
+                    b_1.clicked.connect(lambda checked, n=n_arma: self._ui_ejecutar_disparo(n, 1))
+                    
+                    b_max = QPushButton("MAX")
+                    b_max.setFixedWidth(32)
+                    b_max.setObjectName("BtnAjuste") 
+                    b_max.clicked.connect(lambda checked, n=n_arma: self._ui_recargar_max(n))
+                    
+                    fila.addWidget(lbl_v)
+                    fila.addWidget(b_10)
+                    fila.addWidget(b_1)
+                    fila.addWidget(b_max)
+                else:
+                    fila.addStretch(1)
+                    lbl_melee = QLabel("Cuerpo a Cuerpo")
+                    lbl_melee.setObjectName("LblTextoGris") 
+                    fila.addWidget(lbl_melee)
+                    fila.addStretch(1)
+                l.addLayout(fila)
         else:
-            lbl_sin_armas = QLabel("Sin armas equipadas")
-            lbl_sin_armas.setObjectName("LblTextoGris")
-            layout_col_armas.addWidget(lbl_sin_armas)
+            lbl_sin = QLabel("Sin armas equipadas")
+            lbl_sin.setObjectName("LblTextoGris") 
+            l.addWidget(lbl_sin)
+        l.addStretch(1)
+        return w
 
-        layout_col_armas.addStretch(1)
-
-        # --- COLUMNA 4: ESTADOS Y HERIDAS CRÍTICAS ---
-        columna_estados = QWidget()
-        layout_col_est_principal = QHBoxLayout(columna_estados) 
-        layout_col_est_principal.setContentsMargins(15, 0, 0, 0)
-        layout_col_est_principal.setSpacing(10)
-
+    def _construir_columna_estados(self):
+        w = QWidget()
+        l = QHBoxLayout(w)
+        l.setContentsMargins(15, 0, 0, 0)
         self.widgets_referencia["debufos_temp"] = []
         self.widgets_referencia["debufos_perm"] = []
 
-        if not hasattr(personaje_obj, "debufos_permanentes_ids"):
-            personaje_obj.debufos_permanentes_ids = []
+        if not hasattr(self.personaje_obj, "debufos_permanentes_ids"):
+            self.personaje_obj.debufos_permanentes_ids = []
 
-        # Funciones auxiliares UI para estados
-        def actualizar_tooltip_y_modelo(combo_box, es_permanente):
-            idx = combo_box.currentIndex()
-            if idx >= 0:
-                tooltip = combo_box.itemData(idx, Qt.ItemDataRole.ToolTipRole)
-                combo_box.setToolTip(tooltip if tooltip else "")
-            
-            if es_permanente and not personaje_obj.es_npc:
-                personaje_obj.debufos_permanentes_ids.clear()
-                for c in self.widgets_referencia["debufos_perm"]:
-                    id_deb = c.currentData(Qt.ItemDataRole.UserRole)
-                    if id_deb:
-                        personaje_obj.debufos_permanentes_ids.append(id_deb)
+        # Sub-columna Temporales
+        c_temp, l_temp = QWidget(), QVBoxLayout()
+        c_temp.setLayout(l_temp)
+        h_temp = QHBoxLayout()
+        lbl_tit_t = QLabel("⚠️ TEMPORALES")
+        lbl_tit_t.setObjectName("LblTitTemp") 
+        h_temp.addWidget(lbl_tit_t)
+        
+        b_add_t = QPushButton("+"); b_add_t.setFixedSize(20,20); b_add_t.setObjectName("BtnAddRemove") 
+        b_add_t.clicked.connect(lambda checked: self._agregar_combo_debufo(l_temp, self.cat_temporales, self.widgets_referencia["debufos_temp"], False))
+        b_rem_t = QPushButton("-"); b_rem_t.setFixedSize(20,20); b_rem_t.setObjectName("BtnAddRemove") 
+        b_rem_t.clicked.connect(lambda checked: self._remover_combo(l_temp, self.widgets_referencia["debufos_temp"], False))
+        h_temp.addWidget(b_add_t); h_temp.addWidget(b_rem_t); h_temp.addStretch(1)
+        l_temp.addLayout(h_temp)
+        
+        self.widgets_referencia["btn_add_temp"] = b_add_t
+        l_temp.addStretch(1) 
+        self._agregar_combo_debufo(l_temp, self.cat_temporales, self.widgets_referencia["debufos_temp"], False)
 
-        def remover_combo(layout_destino, lista_referencias, es_permanente):
-            if len(lista_referencias) > 1:
-                combo_removido = lista_referencias.pop()
-                layout_destino.removeWidget(combo_removido)
-                combo_removido.deleteLater()
-                if es_permanente and not personaje_obj.es_npc:
-                    actualizar_tooltip_y_modelo(lista_referencias[0], es_permanente)
-
-        def agregar_combo_debufo(layout_destino, lista_catalogo, lista_referencias, es_permanente):
-            combo = NoScrollComboBox()
-            combo.setFixedWidth(160)
-            
-            for index, item in enumerate(lista_catalogo):
-                combo.addItem(item["nombre"], userData=item.get("id_debufo"))
-                
-                if item.get("tipo") == "Permanente" and item["nombre"] != "---":
-                    tooltip = f"""
-                    <div style='background-color: #1E1E1E; color: #FFD700; padding: 5px; border: 1px solid #555555; font-family: Arial; font-size: 11px;'>
-                        <b>{item['nombre']}</b><br>
-                        <span style='color: #FFFFFF;'>{item['descripcion']}</span><br><br>
-                        <span style='color: #00FFFF;'><b>Remedio Rápido:</b> {item.get('remedio_rapido', 'N/D')}</span><br>
-                        <span style='color: #00FF00;'><b>Tratamiento:</b> {item.get('tratamiento', 'N/D')}</span>
-                    </div>
-                    """
-                else:
-                    tooltip = f"""
-                    <div style='background-color: #1E1E1E; color: #FFD700; padding: 5px; border: 1px solid #555555; font-family: Arial; font-size: 11px;'>
-                        <b>{item['nombre']}</b><br>
-                        <span style='color: #FFFFFF;'>{item['descripcion']}</span>
-                    </div>
-                    """
-                combo.setItemData(index, tooltip, Qt.ItemDataRole.ToolTipRole)
-
-            posicion_insercion = layout_destino.count() - 1
-            layout_destino.insertWidget(posicion_insercion, combo)
-            lista_referencias.append(combo)
-
-            combo.currentIndexChanged.connect(lambda idx, cb=combo: actualizar_tooltip_y_modelo(cb, es_permanente))
-            actualizar_tooltip_y_modelo(combo, es_permanente)
-            return combo
-
-        # SUB-COLUMNA A: ESTADOS TEMPORALES
-        col_temp = QWidget()
-        layout_temp = QVBoxLayout(col_temp)
-        layout_temp.setContentsMargins(0, 0, 0, 0)
-        layout_temp.setSpacing(4)
+        # Sub-columna Permanentes
+        c_perm, l_perm = QWidget(), QVBoxLayout()
+        c_perm.setLayout(l_perm)
+        h_perm = QHBoxLayout()
+        lbl_tit_p = QLabel("🏥 CRÍTICAS")
+        lbl_tit_p.setObjectName("LblTitPerm") 
+        h_perm.addWidget(lbl_tit_p)
         
-        header_temp = QWidget()
-        h_layout_temp = QHBoxLayout(header_temp)
-        h_layout_temp.setContentsMargins(0, 0, 0, 0)
+        b_add_p = QPushButton("+"); b_add_p.setFixedSize(20,20); b_add_p.setObjectName("BtnAddRemove") 
+        b_add_p.clicked.connect(lambda checked: self._agregar_combo_debufo(l_perm, self.cat_permanentes, self.widgets_referencia["debufos_perm"], True))
+        b_rem_p = QPushButton("-"); b_rem_p.setFixedSize(20,20); b_rem_p.setObjectName("BtnAddRemove") 
+        b_rem_p.clicked.connect(lambda checked: self._remover_combo(l_perm, self.widgets_referencia["debufos_perm"], True))
+        h_perm.addWidget(b_add_p); h_perm.addWidget(b_rem_p); h_perm.addStretch(1)
+        l_perm.addLayout(h_perm)
+        self.widgets_referencia["btn_add_perm"] = b_add_p
         
-        lbl_tit_temp = QLabel("⚠️ TEMPORALES")
-        lbl_tit_temp.setObjectName("LblTitTemp")
-        
-        btn_add_temp = QPushButton("+")
-        btn_add_temp.setFixedSize(20, 20)
-        btn_add_temp.setObjectName("BtnAddRemove")
-        btn_add_temp.clicked.connect(lambda checked, l=layout_temp, c=cat_temporales, ref=self.widgets_referencia["debufos_temp"]: agregar_combo_debufo(l, c, ref, False))
-        self.widgets_referencia["btn_add_temp"] = btn_add_temp
-        
-        btn_remove_temp = QPushButton("-")
-        btn_remove_temp.setFixedSize(20, 20)
-        btn_remove_temp.setObjectName("BtnAddRemove")
-        btn_remove_temp.clicked.connect(lambda checked, l=layout_temp, ref=self.widgets_referencia["debufos_temp"]: remover_combo(l, ref, False))
-        
-        h_layout_temp.addWidget(lbl_tit_temp)
-        h_layout_temp.addWidget(btn_add_temp)
-        h_layout_temp.addWidget(btn_remove_temp)
-        h_layout_temp.addStretch(1)
-        
-        layout_temp.addWidget(header_temp)
-        layout_temp.addStretch(1) 
-
-        agregar_combo_debufo(layout_temp, cat_temporales, self.widgets_referencia["debufos_temp"], False)
-
-        # SUB-COLUMNA B: HERIDAS CRÍTICAS
-        col_perm = QWidget()
-        layout_perm = QVBoxLayout(col_perm)
-        layout_perm.setContentsMargins(0, 0, 0, 0)
-        layout_perm.setSpacing(4)
-        
-        header_perm = QWidget()
-        h_layout_perm = QHBoxLayout(header_perm)
-        h_layout_perm.setContentsMargins(0, 0, 0, 0)
-        
-        lbl_tit_perm = QLabel("🏥 CRÍTICAS")
-        lbl_tit_perm.setObjectName("LblTitPerm")
-        
-        btn_add_perm = QPushButton("+")
-        btn_add_perm.setFixedSize(20, 20)
-        btn_add_perm.setObjectName("BtnAddRemove")
-        btn_add_perm.clicked.connect(lambda checked, l=layout_perm, c=cat_permanentes, ref=self.widgets_referencia["debufos_perm"]: agregar_combo_debufo(l, c, ref, True))
-        self.widgets_referencia["btn_add_perm"] = btn_add_perm
-        
-        btn_remove_perm = QPushButton("-")
-        btn_remove_perm.setFixedSize(20, 20)
-        btn_remove_perm.setObjectName("BtnAddRemove")
-        btn_remove_perm.clicked.connect(lambda checked, l=layout_perm, ref=self.widgets_referencia["debufos_perm"]: remover_combo(l, ref, True))
-        
-        h_layout_perm.addWidget(lbl_tit_perm)
-        h_layout_perm.addWidget(btn_add_perm)
-        h_layout_perm.addWidget(btn_remove_perm)
-        h_layout_perm.addStretch(1)
-        
-        layout_perm.addWidget(header_perm)
-        layout_perm.addStretch(1) 
-
-        if not personaje_obj.es_npc and personaje_obj.debufos_permanentes_ids:
-            ids_a_cargar = list(personaje_obj.debufos_permanentes_ids)
-            for id_deb in ids_a_cargar:
-                combo = agregar_combo_debufo(layout_perm, cat_permanentes, self.widgets_referencia["debufos_perm"], True)
+        l_perm.addStretch(1) 
+        if self.guarda_estados_db and self.personaje_obj.debufos_permanentes_ids:
+            for id_deb in list(self.personaje_obj.debufos_permanentes_ids):
+                combo = self._agregar_combo_debufo(l_perm, self.cat_permanentes, self.widgets_referencia["debufos_perm"], True)
                 idx = combo.findData(id_deb, Qt.ItemDataRole.UserRole)
-                if idx >= 0:
-                    combo.setCurrentIndex(idx)
+                if idx >= 0: combo.setCurrentIndex(idx)
         else:
-            agregar_combo_debufo(layout_perm, cat_permanentes, self.widgets_referencia["debufos_perm"], True)
+            self._agregar_combo_debufo(l_perm, self.cat_permanentes, self.widgets_referencia["debufos_perm"], True)
 
-        layout_col_est_principal.addWidget(col_temp)
-        layout_col_est_principal.addWidget(col_perm)
-        
-        # --- COLUMNA 5: MEJORAS / CYBERWARE ESTÁTICO ---
-        if es_npc and hasattr(personaje_obj, "mejoras") and personaje_obj.mejoras:
-            contenedor_mejoras_final = QWidget()
-            layout_mej_final_horizontal = QHBoxLayout(contenedor_mejoras_final)
-            layout_mej_final_horizontal.setContentsMargins(15, 0, 0, 0)
-            layout_mej_final_horizontal.setSpacing(15)
+        l.addWidget(c_temp)
+        l.addWidget(c_perm)
+        return w
 
-            todas_las_mejoras = personaje_obj.mejoras
-            columnas_agrupadas = [todas_las_mejoras[i:i + 5] for i in range(0, len(todas_las_mejoras), 5)]
-
-            for num_col, sublista in enumerate(columnas_agrupadas):
-                col_widget_vertical = QWidget()
-                layout_v_individual = QVBoxLayout(col_widget_vertical)
-                layout_v_individual.setContentsMargins(0, 0, 0, 0)
-                layout_v_individual.setSpacing(4)
-                layout_v_individual.setAlignment(Qt.AlignmentFlag.AlignTop) 
-
-                if num_col == 0:
-                    lbl_mej_tit = QLabel("🦾MEJORAS🦾")
-                    lbl_mej_tit.setObjectName("TituloColumnaMejoras")
-                    layout_v_individual.addWidget(lbl_mej_tit)
-                else:
-                    layout_v_individual.addSpacing(15)
-
-                for mejora in sublista:
-                    nombre_buff = mejora["nombre"]
-                    desc_buff = mejora["descripcion"]
-                    
-                    lbl_mejora = QLabel(f"• {nombre_buff}")
-                    lbl_mejora.setObjectName("LblTextoMejora")
-                    lbl_mejora.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-                    
-                    texto_tooltip = f"""
-                    <div style='background-color: #1E1E1E; color: #FFD700; padding: 5px; border: 1px solid #555555; font-family: Arial; font-size: 12px;'>
-                        <b>{nombre_buff}</b><br>
-                        <span style='color: #FFFFFF;'>{desc_buff}</span>
-                    </div>
-                    """
-                    lbl_mejora.setToolTip(texto_tooltip)
-                    lbl_mejora.setCursor(Qt.CursorShape.WhatsThisCursor)
-                    layout_v_individual.addWidget(lbl_mejora)
-
-                layout_v_individual.addStretch(1)
-                layout_mej_final_horizontal.addWidget(col_widget_vertical)
-
-            layout_mej_final_horizontal.addStretch(1)
-
-        # --- ENSAMBLAJE FINAL DE COLUMNAS ---
-        layout_stats_ampliado.addWidget(columna_izquierda)
-        layout_stats_ampliado.addWidget(columna_derecha)
-        layout_stats_ampliado.addWidget(columna_armas)
-        layout_stats_ampliado.addWidget(columna_estados)
-        
-        if es_npc and hasattr(personaje_obj, "mejoras") and personaje_obj.mejoras:
-            layout_stats_ampliado.addWidget(contenedor_mejoras_final)
+    def _agregar_combo_debufo(self, layout_destino, catalogo, referencias, es_perm):
+        combo = NoScrollComboBox()
+        combo.setFixedWidth(160)
+        for idx, item in enumerate(catalogo):
+            combo.addItem(item["nombre"], userData=item.get("id_debufo"))
             
-        layout_stats_ampliado.addStretch(1)
-        layout_principal.addLayout(layout_stats_ampliado)
-        
-        self.sincronizar_interfaz()
+            # --- RESTAURACIÓN DE TOOLTIP DE ESTADOS ---
+            if item.get("tipo") == "Permanente" and item["nombre"] != "---":
+                tooltip = f"""
+                <div style='background-color: #1E1E1E; color: #FFD700; padding: 5px; border: 1px solid #555555; font-family: Arial; font-size: 11px;'>
+                    <b>{item['nombre']}</b><br>
+                    <span style='color: #FFFFFF;'>{item['descripcion']}</span><br><br>
+                    <span style='color: #00FFFF;'><b>Remedio Rápido:</b> {item.get('remedio_rapido', 'N/D')}</span><br>
+                    <span style='color: #00FF00;'><b>Tratamiento:</b> {item.get('tratamiento', 'N/D')}</span>
+                </div>
+                """
+            else:
+                tooltip = f"""
+                <div style='background-color: #1E1E1E; color: #FFD700; padding: 5px; border: 1px solid #555555; font-family: Arial; font-size: 11px;'>
+                    <b>{item['nombre']}</b><br>
+                    <span style='color: #FFFFFF;'>{item.get('descripcion', '')}</span>
+                </div>
+                """
+            combo.setItemData(idx, tooltip, Qt.ItemDataRole.ToolTipRole)
+            # ------------------------------------------
 
-    # =======================================================
-    # MÉTODOS ENVOLVENTES (Lógica Visual -> Controlador)
-    # =======================================================
+        layout_destino.insertWidget(layout_destino.count() - 1, combo)
+        referencias.append(combo)
+        combo.currentIndexChanged.connect(lambda idx, cb=combo: self._actualizar_tooltip_modelo(cb, es_perm))
+        self._actualizar_tooltip_modelo(combo, es_perm)
+        return combo
 
-    # --- ui/ui_tarjetas.py (Modificar dentro de PersonajeWidget) ---
+    def _remover_combo(self, layout_destino, referencias, es_perm):
+        if len(referencias) > 1:
+            combo = referencias.pop()
+            layout_destino.removeWidget(combo)
+            combo.deleteLater()
+            if es_perm and self.guarda_estados_db:
+                self._actualizar_tooltip_modelo(referencias[0], es_perm)
 
-    # --- ui/ui_tarjetas.py (Dentro de PersonajeWidget) ---
+    def _actualizar_tooltip_modelo(self, combo, es_perm):
+        idx = combo.currentIndex()
+        if idx >= 0:
+            tooltip = combo.itemData(idx, Qt.ItemDataRole.ToolTipRole)
+            combo.setToolTip(tooltip if tooltip else "")
 
+        if es_perm and self.guarda_estados_db:
+            self.personaje_obj.debufos_permanentes_ids.clear()
+            for c in self.widgets_referencia["debufos_perm"]:
+                id_deb = c.currentData(Qt.ItemDataRole.UserRole)
+                if id_deb: self.personaje_obj.debufos_permanentes_ids.append(id_deb)
+
+    
+    # ------------------------------------------------------------------
+    # CONTROLADORES DE EVENTOS
+    # ------------------------------------------------------------------
     def sincronizar_interfaz(self):
-        """Actualiza la UI: Solo la barra de vida cambia a rojo al estar herido."""
-        p = self.personaje_obj
-        w = self.widgets_referencia
-
-        # 1. Actualización de valores numéricos
+        p, w = self.personaje_obj, self.widgets_referencia
         if "hp" in w: w["hp"].setValue(p.hp)
         for attr in ["body_sp", "head_sp", "luck", "move"]:
             if attr in w: w[attr].setValue(getattr(p, attr))
         if "death_penalty" in w: w["death_penalty"].setText(str(p.death_penalty))
         if hasattr(p, "armas") and "armas" in w:
-            for n_arma, datos in p.armas.items():
-                if n_arma in w["armas"]: w["armas"][n_arma].setText(str(datos["actual"]))
+            for n, d in p.armas.items():
+                if n in w["armas"]: w["armas"][n].setText(str(d["actual"]))
 
-        # =======================================================
-        # LÓGICA DE COLOR SEPARADA (Identidad vs Estado)
-        # =======================================================
-        umbral_critico = p.max_hp * 0.5
+        color_id = self._obtener_color_identidad()
+        color_barra = "#FF0000" if p.hp <= (p.max_hp * 0.5) else color_id
+
+        if "hp" in w: w["hp"].setStyleSheet(f"QProgressBar::chunk {{ background-color: {color_barra}; border-radius: 5px; }}")
+        if "nombre" in w: w["nombre"].setStyleSheet(f"color: {color_id}; font-family: 'Orbitron', sans-serif; font-size: 14px; font-weight: bold; border: none;")
+
+    def _ui_procesar_ataque(self, c, m, d):
+        txt = self.input_dano.text()
+        if txt.isdigit():
+            controlador.procesar_ataque(self.personaje_obj, int(txt), c, m, d)
+            self.sincronizar_interfaz()
+            self.input_dano.clear()
+
+    def _ui_ajustar_stat(self, a, c): controlador.ajustar_stat_secundario(self.personaje_obj, a, c); self.sincronizar_interfaz()
+    def _ui_ajustar_simple(self, a, c): controlador.ajustar_atributo_simple(self.personaje_obj, a, c); self.sincronizar_interfaz()
+    def _ui_dano_fijo(self, c): controlador.aplicar_dano_fijo(self.personaje_obj, c); self.sincronizar_interfaz()
+    def _ui_ajustar_municion(self, a, c): controlador.ajustar_municion_arma(self.personaje_obj, a, c); self.sincronizar_interfaz()
+    def _ui_recargar_max(self, a): controlador.recargar_arma_maxima(self.personaje_obj, a); self.sincronizar_interfaz()
+    # ==================================================================
+    # NUEVO MÉTODO: PEGAR EXACTAMENTE AQUÍ CON ESTA MISMA ALINEACIÓN
+    # ==================================================================
+    def _ui_ejecutar_disparo(self, nombre_arma, cantidad):
+        """
+        Resta munición y, si es un NPC, genera la tirada de ataque 
+        incluyendo el modificador situacional del cuadro de texto.
+        """
+        import controlador # Importación local para evitar circulares
         
-        # Color de Identidad (El color del token o verde para PJs)
-        if self.es_npc:
-            color_identidad = getattr(p, 'color_token_hex', "#9400D3") 
-        else:
-            color_identidad = "#15A315" # Verde Jugador
+        # 1. Obtener datos del arma
+        arma_datos = self.personaje_obj.armas.get(nombre_arma)
+        if not arma_datos:
+            return
 
-        # Color de Estado (Solo para la barra de vida)
-        color_barra = "#FF0000" if p.hp <= umbral_critico else color_identidad
+        es_npc = getattr(self.personaje_obj, 'es_npc', False)
 
-        # 2. Aplicar color a la BARRA (Cambia según la vida)
-        if "hp" in w:
-            w["hp"].setStyleSheet(f"""
-                QProgressBar::chunk {{ 
-                    background-color: {color_barra}; 
-                    border-radius: 5px; 
-                }}
-            """)
+        # 2. Validar falta de munición
+        if arma_datos["actual"] < cantidad:
+            # Solo informamos en el panel si es un NPC
+            if es_npc and hasattr(self, 'lbl_resultado'):
+                self.lbl_resultado.setText(f"<b style='color: #FF0000;'>⚠️ {nombre_arma.upper()} SIN BALAS</b>")
+            return
 
-        # 3. Aplicar color al NOMBRE (Se queda siempre con el color del token)
-        if "nombre" in w:
-            w["nombre"].setStyleSheet(f"""
-                color: {color_identidad}; 
-                font-family: 'Orbitron', sans-serif; 
-                font-size: 14px; 
-                font-weight: bold;
-                border: none;
-            """)
-    def _ui_procesar_ataque(self, cabeza, melee, directo):
-        texto = self.input_dano.text() 
-        if texto.isdigit():
-            controlador.procesar_ataque(self.personaje_obj, int(texto), cabeza, melee, directo)
-            self.sincronizar_interfaz()
-            self.input_dano.clear()
-
-    def _ui_procesar_curacion(self):
-        texto = self.input_dano.text()
-        if texto.isdigit():
-            controlador.procesar_curacion(self.personaje_obj, int(texto))
-            self.sincronizar_interfaz()
-            self.input_dano.clear()
-
-    def _ui_ajustar_stat(self, atributo, cantidad):
-        controlador.ajustar_stat_secundario(self.personaje_obj, atributo, cantidad)
+        # 3. Restar munición lógicamente (Aplica a todos)
+        controlador.ajustar_municion_arma(self.personaje_obj, nombre_arma, -cantidad)
         self.sincronizar_interfaz()
 
-    def _ui_ajustar_simple(self, atributo, cantidad):
-        controlador.ajustar_atributo_simple(self.personaje_obj, atributo, cantidad)
-        self.sincronizar_interfaz()
+        # 4. Si NO es NPC o no tiene panel de resultados, terminamos aquí
+        if not es_npc or not hasattr(self, 'lbl_resultado'):
+            return
 
-    def _ui_dano_fijo(self, cantidad):
-        controlador.aplicar_dano_fijo(self.personaje_obj, cantidad)
-        self.sincronizar_interfaz()
+        # 5. --- LÓGICA EXCLUSIVA DE NPCs (Cálculo de Dados) ---
+        
+        # Capturamos el modificador del cuadro de texto (MOD ATK)
+        mod_situacional = 0
+        if hasattr(self, 'input_mod_ataque'):
+            try:
+                texto_mod = self.input_mod_ataque.text().strip()
+                mod_situacional = int(texto_mod) if texto_mod else 0
+            except ValueError:
+                mod_situacional = 0 # Protección contra letras o símbolos
 
-    def _ui_ajustar_municion(self, arma, cantidad):
-        controlador.ajustar_municion_arma(self.personaje_obj, arma, cantidad)
-        self.sincronizar_interfaz()
+        # Extraemos estadísticas de combate
+        base_combate = getattr(self.personaje_obj, 'base_combate', 0)
+        dados_dano = arma_datos.get('dados_dano', 0) 
+        es_autofuego = (cantidad == 10)
 
-    def _ui_recargar_max(self, arma):
-        controlador.recargar_arma_maxima(self.personaje_obj, arma)
-        self.sincronizar_interfaz()
-
-    def _ui_resetear(self):
+        # Generamos la tirada llamando al controlador con el nuevo parámetro
+        texto_html = controlador.generar_tirada_ataque(
+            nombre_arma=nombre_arma,
+            base=base_combate,
+            dados_dano=dados_dano,
+            es_autofuego=es_autofuego,
+            mod_situacional=mod_situacional # Envia el valor del cuadrito amarillo
+        )
+        
+        # Actualizamos el recuadro negro del NPC
+        self.lbl_resultado.setText(texto_html)
+    # ==================================================================
+    
+    
+    def _ui_resetear(self): 
         controlador.resetear_personaje_logico(self.personaje_obj)
         for tipo in ["debufos_temp", "debufos_perm"]:
             if tipo in self.widgets_referencia:
@@ -617,3 +481,194 @@ class PersonajeWidget(QFrame):
                     c.deleteLater()
                 if lista: lista[0].setCurrentIndex(0)
         self.sincronizar_interfaz()
+
+
+# =============================================================================
+# CLASE JUGADOR: EXPANDE LA BASE CON CURACIÓN, SUERTE Y MUERTE
+# =============================================================================
+class TarjetaJugador(TarjetaBase):
+    def __init__(self, p_obj, c_temp, c_perm):
+        self.guarda_estados_db = True 
+        super().__init__(p_obj, c_temp, c_perm)
+
+    def _obtener_color_identidad(self):
+        return "#15A315" 
+
+    def _obtener_stats_col_izq(self):
+        stats = super()._obtener_stats_col_izq()
+        stats.append(("LUCK", "luck", "max_luck"))
+        return stats
+
+    def _agregar_botones_hp(self, layout):
+        btn_curar = QPushButton("💚 Curar")
+        btn_curar.setObjectName("BtnCurar") 
+        btn_curar.clicked.connect(lambda checked: self._ui_procesar_curacion())
+        layout.addWidget(btn_curar)
+
+    def _agregar_elementos_col_der(self, layout):
+        fila_death = QHBoxLayout()
+        lbl_tit = QLabel("💀☠️💀"); lbl_tit.setFixedWidth(60)
+        lbl_tit.setObjectName("LblStatTit") 
+        lbl_val = QLabel(str(self.personaje_obj.death_penalty))
+        lbl_val.setFixedWidth(25)
+        lbl_val.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        lbl_val.setObjectName("ValorDeathPenalty") 
+        self.widgets_referencia["death_penalty"] = lbl_val
+        
+        b_menos = QPushButton("-"); b_menos.setFixedWidth(24); b_menos.setObjectName("BtnAjuste") 
+        b_menos.clicked.connect(lambda checked: self._ui_ajustar_simple("death_penalty", -1))
+        b_mas = QPushButton("+"); b_mas.setFixedWidth(24); b_mas.setObjectName("BtnAjuste") 
+        b_mas.clicked.connect(lambda checked: self._ui_ajustar_simple("death_penalty", 1))
+        
+        fila_death.addWidget(lbl_tit); fila_death.addWidget(lbl_val)
+        fila_death.addWidget(b_menos); fila_death.addWidget(b_mas)
+        fila_death.addStretch(1)
+        layout.addLayout(fila_death)
+        
+        super()._agregar_elementos_col_der(layout)
+
+    def _ui_procesar_curacion(self):
+        txt = self.input_dano.text()
+        if txt.isdigit():
+            controlador.procesar_curacion(self.personaje_obj, int(txt))
+            self.sincronizar_interfaz()
+            self.input_dano.clear()
+            
+# =============================================================================
+# CLASE NPC: EXPANDE LA BASE CON ELIMINACIÓN, JEFES Y MEJORAS
+# =============================================================================
+class TarjetaNPC(TarjetaBase):
+    def __init__(self, p_obj, c_temp, c_perm):
+        super().__init__(p_obj, c_temp, c_perm)
+
+    def _obtener_color_identidad(self):
+        return getattr(self.personaje_obj, 'color_token_hex', "#9400D3")
+
+    def _aplicar_estilos_base(self):
+        if getattr(self.personaje_obj, 'es_boss', False):
+            self.setStyleSheet("QFrame#ContenedorPersonaje { border: 2px solid #FF0000; background-color: #0A0000; }")
+
+    def _agregar_botones_cabecera(self, layout):
+        btn_cerrar = QPushButton("❌")
+        btn_cerrar.setFixedSize(22, 22)
+        btn_cerrar.setStyleSheet("color: #8B0000; font-weight: bold; background: transparent; border: 1px solid #8B0000; font-size: 10px;")
+        btn_cerrar.clicked.connect(lambda checked: self.solicitar_eliminacion.emit(self.personaje_obj))
+        layout.addWidget(btn_cerrar)
+        
+    def _agregar_elementos_col_der(self, layout):
+        # 1. Llamar a la clase base para que dibuje la fila de 🔥Fire🔥 primero
+        super()._agregar_elementos_col_der(layout)
+        
+        # 2. Fila de Modificador de Combate
+        fila_mod = QHBoxLayout()
+        
+        lbl_mod = QLabel("🎯 MOD. ATK")
+        lbl_mod.setFixedWidth(75)
+        lbl_mod.setObjectName("LblStatTit") 
+        
+        # Este es el cuadro donde escribirás el -2, +1, etc.
+        self.input_mod_ataque = QLineEdit()
+        self.input_mod_ataque.setPlaceholderText("0")
+        self.input_mod_ataque.setFixedWidth(45)
+        self.input_mod_ataque.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.input_mod_ataque.setStyleSheet("""
+            QLineEdit {
+                background-color: #0d0d0d;
+                color: #FFFF00; 
+                border: 1px solid #555;
+                border-radius: 3px;
+                font-weight: bold;
+                font-family: 'Consolas';
+            }
+        """)
+        
+        fila_mod.addWidget(lbl_mod)
+        fila_mod.addWidget(self.input_mod_ataque)
+        fila_mod.addStretch(1)
+        layout.addLayout(fila_mod)
+        
+
+        # 2. Construir la nueva fila de Iniciativa debajo
+        fila_ini = QHBoxLayout()
+        
+        lbl_ini = QLabel("⚡ INIT")
+        lbl_ini.setFixedWidth(60)
+        lbl_ini.setObjectName("LblStatTit") 
+        
+    
+        btn_ini = QPushButton("TIRAR DADOS")
+        btn_ini.setFixedWidth(92) # Ancho alineado visualmente con los botones de fuego
+        btn_ini.setStyleSheet("color: #00FFFF; font-weight: bold; background-color: #1A1A1A; border: 1px solid #00FFFF; border-radius: 3px;")
+        btn_ini.clicked.connect(lambda checked: self._ui_ejecutar_iniciativa())
+        
+        fila_ini.addWidget(lbl_ini)
+        fila_ini.addWidget(btn_ini)
+        fila_ini.addStretch(1)
+        
+        layout.addLayout(fila_ini)
+
+    def _ui_ejecutar_iniciativa(self):
+        """Llama al controlador para generar la iniciativa y la muestra en el panel."""
+        import controlador
+        base_ini = getattr(self.personaje_obj, 'base_iniciativa', 0)
+        
+        if hasattr(self, 'lbl_resultado'):
+            texto_html = controlador.generar_tirada_iniciativa(base_ini)
+            self.lbl_resultado.setText(texto_html)
+
+    def _agregar_columnas_extra(self, layout):
+        # 1. Columna de Mejoras (si el NPC tiene)
+        if hasattr(self.personaje_obj, "mejoras") and self.personaje_obj.mejoras:
+            c_mej = QWidget(); l_mej = QVBoxLayout(c_mej)
+            l_mej.setContentsMargins(15, 0, 0, 0)
+            lbl_tit = QLabel("🦾MEJORAS🦾")
+            lbl_tit.setObjectName("TituloColumnaMejoras") 
+            l_mej.addWidget(lbl_tit)
+            
+            for m in self.personaje_obj.mejoras:
+                lbl_m = QLabel(f"• {m['nombre']}")
+                lbl_m.setObjectName("LblTextoMejora") 
+
+                # --- TOOLTIP DE MEJORAS ---
+                texto_tooltip = f"""
+                <div style='background-color: #1E1E1E; color: #FFD700; padding: 5px; border: 1px solid #555555; font-family: Arial; font-size: 12px;'>
+                    <b>{m['nombre']}</b><br>
+                    <span style='color: #FFFFFF;'>{m.get('descripcion', '')}</span>
+                </div>
+                """
+                lbl_m.setToolTip(texto_tooltip)
+                lbl_m.setCursor(Qt.CursorShape.WhatsThisCursor)
+                # --------------------------
+
+                l_mej.addWidget(lbl_m)
+            l_mej.addStretch(1)
+            layout.addWidget(c_mej)
+
+        # 2. PANEL DE RESULTADOS DE COMBATE (Exclusivo de NPCs)
+        self.frame_resultado = QFrame()
+        self.frame_resultado.setFixedSize(220, 90) # Tamaño original amplio
+        self.frame_resultado.setStyleSheet("""
+            QFrame { background-color: #0d0d0d; border: 1px solid #333333; border-radius: 4px; }
+        """)
+        
+        layout_res = QVBoxLayout(self.frame_resultado)
+        layout_res.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self.lbl_resultado = QLabel("<span style='color: #555555;'>ESPERANDO ACCIÓN...</span>")
+        self.lbl_resultado.setWordWrap(True)
+        self.lbl_resultado.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.lbl_resultado.setStyleSheet("border: none; font-family: 'Consolas', monospace; font-size: 11px;")
+        layout_res.addWidget(self.lbl_resultado)
+        
+        layout.addWidget(self.frame_resultado)
+
+    
+
+# =============================================================================
+# EL PATRÓN FÁBRICA (FACTORY PATTERN) PARA COMPATIBILIDAD CON MAIN.PY
+# =============================================================================
+def PersonajeWidget(personaje_obj, cat_temporales, cat_permanentes, es_npc=False):
+    if es_npc:
+        return TarjetaNPC(personaje_obj, cat_temporales, cat_permanentes)
+    else:
+        return TarjetaJugador(personaje_obj, cat_temporales, cat_permanentes)

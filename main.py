@@ -4,10 +4,10 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QScrollArea, QFrame, QDialog)
 from PyQt6.QtCore import Qt
 
-# Importaciones de UI limpias y consolidadadas (DialogoSelectorColor eliminado)
+# Importaciones de UI actualizadas
 from ui.ui_tarjetas import PersonajeWidget
 from ui.ui_paneles import PanelJugadoresHeader, PanelNPCsHeader
-from ui.ui_dialogos import DialogoAoE, DialogoAoEEstados, DialogoBestiario
+from ui.ui_dialogos import DialogoAccionGlobal, DialogoBestiario
 
 import database 
 
@@ -41,7 +41,7 @@ class MainWindow(QMainWindow):
         self.registro_personajes = [] 
 
         # --- SECCIÓN JUGADORES ---
-        header_pjs = PanelJugadoresHeader(self.abrir_dialogo_aoe, self.abrir_dialogo_estados)
+        header_pjs = PanelJugadoresHeader(self.abrir_dialogo_accion_global)
         self.layout_lista.addWidget(header_pjs)
         
         for p in self.pjs:
@@ -50,7 +50,7 @@ class MainWindow(QMainWindow):
             self.layout_lista.addWidget(widget_pj)
 
         # --- SECCIÓN ADVERSARIOS ---
-        self.header_npcs = PanelNPCsHeader(self.generar_npc_dinamico, self.abrir_dialogo_aoe, self.abrir_dialogo_estados)
+        self.header_npcs = PanelNPCsHeader(self.generar_npc_dinamico, self.abrir_dialogo_accion_global)
         self.layout_lista.addWidget(self.header_npcs)
 
         self.layout_npcs_activos = QVBoxLayout()
@@ -76,7 +76,6 @@ class MainWindow(QMainWindow):
         escuadra = dialogo.escuadra_preparada
         if not escuadra: return
 
-        # Piscina global de colores tácticos (Colores primarios de Roll20)
         piscina_colores = [
             ("#0000FF", "Azul"), ("#00FF00", "Verde"), ("#6A0101", "Rojo"), 
             ("#FFFF00", "Amarillo"), ("#FF00FF", "Morado"), ("#00FFFF", "Cian"),
@@ -92,17 +91,14 @@ class MainWindow(QMainWindow):
 
                 if lote['es_jefe']:
                     nuevo_npc.es_boss = True
-                    # Asignación de color blanco puro para la identidad visual del Jefe
                     nuevo_npc.color_token_hex = "#5B5B5B" 
                     nuevo_npc.nombre = f"{nuevo_npc.nombre} (☠️)" 
                 else:
                     nuevo_npc.es_boss = False
                     indice = npcs_activos % len(piscina_colores)
                     hex_color, nom_color = piscina_colores[indice]
-                    
                     nuevo_npc.color_token_hex = hex_color
                     nuevo_npc.nombre = f"{nuevo_npc.nombre} ({nom_color})"
-                    
                     npcs_activos += 1 
 
                 widget_npc = PersonajeWidget(nuevo_npc, self.cat_temporales, self.cat_permanentes, es_npc=True)
@@ -115,17 +111,11 @@ class MainWindow(QMainWindow):
         bar = self.centralWidget().verticalScrollBar()
         bar.setValue(bar.maximum())
         
-    def abrir_dialogo_aoe(self, es_npc):
+    def abrir_dialogo_accion_global(self, es_npc):
+        """Función unificada para abrir el diálogo de AoE y Estados."""
         registro_filtrado = [(p, w) for p, w in self.registro_personajes if p.es_npc == es_npc]
-        dialogo = DialogoAoE(registro_filtrado, self)
-        titulo = "Daño AoE - Adversarios" if es_npc else "Daño AoE - Jugadores"
-        dialogo.setWindowTitle(titulo)
-        dialogo.exec()
-
-    def abrir_dialogo_estados(self, es_npc):
-        registro_filtrado = [(p, w) for p, w in self.registro_personajes if p.es_npc == es_npc]
-        dialogo = DialogoAoEEstados(registro_filtrado, self.cat_temporales, self.cat_permanentes, self)
-        titulo = "Estados AoE - Adversarios" if es_npc else "Estados AoE - Jugadores"
+        dialogo = DialogoAccionGlobal(registro_filtrado, self.cat_temporales, self.cat_permanentes, self)
+        titulo = "Acción Global - Adversarios" if es_npc else "Acción Global - Jugadores"
         dialogo.setWindowTitle(titulo)
         dialogo.exec()
 
@@ -149,7 +139,6 @@ class MainWindow(QMainWindow):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     
-    # Estabilización de la fuente para evitar el error QFont::setPointSize en consola
     fuente_base = app.font()
     if fuente_base.pointSize() <= 0:
         fuente_base.setPointSize(10)

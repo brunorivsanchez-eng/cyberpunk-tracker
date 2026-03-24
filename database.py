@@ -36,21 +36,26 @@ def cargar_partida_db():
             filas_jugadores = cursor.fetchall()
 
             for j in filas_jugadores:
+                # Modificado para extraer las nuevas columnas de combate
                 cursor.execute("""
-                    SELECT pa.nombre, ij.balas_actuales, pa.max_balas,
+                    SELECT pa.nombre, ij.balas_actuales, pa.max_balas, 
+                           pa.dados_dano, pa.id_dv_estandar, pa.id_dv_autofuego,
                            COALESCE(string_agg(pr.descripcion, ' | '), '') as efecto
                     FROM inventario_jugadores ij
                     JOIN plantillas_armas pa ON ij.id_plantilla = pa.id_plantilla
                     LEFT JOIN armas_propiedades ap ON pa.id_plantilla = ap.id_plantilla
                     LEFT JOIN propiedades_armas pr ON ap.id_propiedad = pr.id_propiedad
                     WHERE ij.id_jugador = %s
-                    GROUP BY pa.nombre, ij.balas_actuales, pa.max_balas;
+                    GROUP BY pa.nombre, ij.balas_actuales, pa.max_balas, pa.dados_dano, pa.id_dv_estandar, pa.id_dv_autofuego;
                 """, (j['id_jugador'],))
                 
                 dicc_armas = {
                     arma['nombre']: {
                         "actual": arma['balas_actuales'],
                         "max": arma['max_balas'],
+                        "dados_dano": arma['dados_dano'],
+                        "dv_estandar": arma['id_dv_estandar'],
+                        "dv_autofuego": arma['id_dv_autofuego'],
                         "efecto": arma['efecto'] if arma['efecto'] else ""
                     } for arma in cursor.fetchall()
                 }
@@ -151,8 +156,6 @@ def cargar_catalogos_debuffos():
         if conexion:
             conexion.close()
 
-# --- database.py ---
-
 def obtener_bestiario_completo():
     """Extrae todos los NPCs con sus metadatos para el Dialogo del Bestiario."""
     conn = conectar_bd()
@@ -160,16 +163,16 @@ def obtener_bestiario_completo():
     
     try:
         cur = conn.cursor()
+        # Modificado para extraer las bases de combate e iniciativa
         cur.execute("""
-            SELECT id_npc, nombre, tier, faccion, max_hp, max_body_sp, max_head_sp, max_move 
+            SELECT id_npc, nombre, tier, faccion, max_hp, max_body_sp, max_head_sp, max_move,
+                   base_combate, base_iniciativa
             FROM npc 
             ORDER BY tier ASC, faccion ASC, nombre ASC
         """)
         
         bestiario = []
         for fila in cur.fetchall():
-            # Validación robusta: extrae por nombre si es un diccionario (RealDictCursor), 
-            # o por índice si es una tupla estándar.
             if isinstance(fila, dict) or hasattr(fila, 'keys'):
                 bestiario.append({
                     "id": fila['id_npc'],
@@ -179,7 +182,9 @@ def obtener_bestiario_completo():
                     "hp": fila['max_hp'],
                     "body": fila['max_body_sp'],
                     "head": fila['max_head_sp'],
-                    "move": fila['max_move']
+                    "move": fila['max_move'],
+                    "base_combate": fila['base_combate'],
+                    "base_iniciativa": fila['base_iniciativa']
                 })
             else:
                 bestiario.append({
@@ -190,12 +195,12 @@ def obtener_bestiario_completo():
                     "hp": fila[4],
                     "body": fila[5],
                     "head": fila[6],
-                    "move": fila[7]
+                    "move": fila[7],
+                    "base_combate": fila[8],
+                    "base_iniciativa": fila[9]
                 })
         return bestiario
     except Exception as e:
-        # Se cambia a repr(e) para que, si ocurre otro error en el futuro, 
-        # imprima el tipo de error exacto y no solo el valor.
         print(f"Error al obtener bestiario: {repr(e)}") 
         return []
     finally:
@@ -212,19 +217,25 @@ def instanciar_npc_dinamico(id_npc):
             n = cursor.fetchone()
             if not n: return None
 
+            # Modificado para inyectar daño y DVs al arma del NPC
             cursor.execute("""
-                SELECT pa.nombre, pa.max_balas, COALESCE(string_agg(pr.descripcion, ' | '), '') as efecto
+                SELECT pa.nombre, pa.max_balas, pa.dados_dano, pa.id_dv_estandar, pa.id_dv_autofuego,
+                       COALESCE(string_agg(pr.descripcion, ' | '), '') as efecto
                 FROM npc_armas na
                 JOIN plantillas_armas pa ON na.id_plantilla = pa.id_plantilla
                 LEFT JOIN armas_propiedades ap ON pa.id_plantilla = ap.id_plantilla
                 LEFT JOIN propiedades_armas pr ON ap.id_propiedad = pr.id_propiedad
-                WHERE na.id_npc = %s GROUP BY pa.nombre, pa.max_balas;
+                WHERE na.id_npc = %s 
+                GROUP BY pa.nombre, pa.max_balas, pa.dados_dano, pa.id_dv_estandar, pa.id_dv_autofuego;
             """, (n['id_npc'],))
             
             dicc_armas = {
                 arma['nombre']: {
                     "actual": arma['max_balas'], 
                     "max": arma['max_balas'],
+                    "dados_dano": arma['dados_dano'],
+                    "dv_estandar": arma['id_dv_estandar'],
+                    "dv_autofuego": arma['id_dv_autofuego'],
                     "efecto": arma['efecto'] if arma['efecto'] else ""
                 } for arma in cursor.fetchall()
             }
@@ -247,6 +258,10 @@ def instanciar_npc_dinamico(id_npc):
             npc_obj.body_sp = n['max_body_sp']
             npc_obj.head_sp = n['max_head_sp']
             npc_obj.move = n['max_move']
+            
+            # NUEVO: Inyectando las bases de combate al objeto en memoria
+            npc_obj.base_combate = n['base_combate']
+            npc_obj.base_iniciativa = n['base_iniciativa']
             
             return npc_obj
     except Exception as e:

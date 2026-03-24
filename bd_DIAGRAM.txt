@@ -1,49 +1,71 @@
 /* ==============================================================================
-   FASE 0: LIMPIEZA DEL ENTORNO
+   FASE 0: LIMPIEZA DEL ENTORNO (De Hijas a Padres)
 ============================================================================== */
-
 DROP TABLE IF EXISTS armas_propiedades CASCADE;
+DROP TABLE IF EXISTS npc_armas CASCADE;
+DROP TABLE IF EXISTS npc_buffos CASCADE;
+DROP TABLE IF EXISTS inventario_jugadores CASCADE;
+DROP TABLE IF EXISTS jugadores_debuffos CASCADE;
+
 DROP TABLE IF EXISTS plantillas_armas CASCADE;
 DROP TABLE IF EXISTS propiedades_armas CASCADE;
+DROP TABLE IF EXISTS dv_tablas CASCADE; -- ¡NUEVO: Faltaba esta tabla!
+
 DROP TABLE IF EXISTS buffos CASCADE;
-DROP TABLE IF EXISTS inventario_jugadores CASCADE;
-DROP TABLE IF EXISTS npc_buffos CASCADE;
-DROP TABLE IF EXISTS npc_armas CASCADE;
 DROP TABLE IF EXISTS npc CASCADE;
+
 DROP TABLE IF EXISTS jugadores CASCADE;
-DROP TABLE IF EXISTS jugadores_debuffos CASCADE;
 DROP TABLE IF EXISTS catalogo_debuffos CASCADE;
 
+
 /* ==============================================================================
-   FASE 1: DEFINICIÓN DEL ESQUEMA (DDL)
+    BLOQUE 1: SISTEMA DE BALÍSTICA Y ARMAS 
 ============================================================================== */
--- 1. Catálogo de Buffos y Mejoras Generales
-CREATE TABLE buffos (
-    id_buffo SERIAL PRIMARY KEY,
-    nombre VARCHAR(100) UNIQUE NOT NULL,
-    descripcion TEXT NOT NULL
+
+-- 1. Tabla de Referencia de DVs (Valores de Dificultad)
+CREATE TABLE dv_tablas (
+    id_dv_tabla SERIAL PRIMARY KEY,
+    nombre_esquema VARCHAR(100) UNIQUE NOT NULL, -- Ej: 'Pistola', 'Autofuego SMG'
+    dist_0_6m  INTEGER DEFAULT 0,
+    dist_7_12m INTEGER DEFAULT 0,
+    dist_13_25m INTEGER DEFAULT 0,
+    dist_26_50m INTEGER DEFAULT 0,
+    dist_51_100m INTEGER DEFAULT 0,
+    dist_101_200m INTEGER DEFAULT 0,
+    dist_201_400m INTEGER DEFAULT 0,
+    dist_401_800m INTEGER DEFAULT 0
 );
 
 -- 2. Cualidades mecánicas inherentes a las armas
 CREATE TABLE propiedades_armas (
     id_propiedad SERIAL PRIMARY KEY,
-    nombre VARCHAR(100) UNIQUE NOT NULL,
+    nombre VARCHAR(100) UNIQUE NOT NULL, -- Ej: 'Fuego Automático', 'Ocultable'
     descripcion TEXT NOT NULL
 );
 
--- 3. Moldes base de armamento
+-- 3. Moldes base de armamento (Plantillas)
 CREATE TABLE plantillas_armas (
     id_plantilla SERIAL PRIMARY KEY,
     nombre VARCHAR(100) UNIQUE NOT NULL,
-    max_balas INTEGER NOT NULL DEFAULT 0
+    max_balas INTEGER NOT NULL DEFAULT 0,
+    id_dv_estandar INTEGER REFERENCES dv_tablas(id_dv_tabla) ON DELETE SET NULL,
+    id_dv_autofuego INTEGER REFERENCES dv_tablas(id_dv_tabla) ON DELETE SET NULL,
+    dados_dano INTEGER NOT NULL DEFAULT 1
+);
+
+-- 4. Tabla relacional Muchos a Muchos (Propiedades por Arma)
+CREATE TABLE armas_propiedades (
+    id_plantilla INTEGER REFERENCES plantillas_armas(id_plantilla) ON DELETE CASCADE,
+    id_propiedad INTEGER REFERENCES propiedades_armas(id_propiedad) ON DELETE CASCADE,
+    PRIMARY KEY (id_plantilla, id_propiedad)
 );
 
 
-
 /* ==============================================================================
-   BLOQUE 1: BESTIARIO (ESTÁTICO / SOLO LECTURA)
+   BLOQUE 2: BESTIARIO Y ADVERSARIOS 
 ============================================================================== */
--- 1. Catálogo Base de Enemigos
+
+-- 5. Catálogo Base de Enemigos
 CREATE TABLE npc (
     id_npc SERIAL PRIMARY KEY,
     nombre VARCHAR(100) UNIQUE NOT NULL,
@@ -52,27 +74,38 @@ CREATE TABLE npc (
     max_hp INTEGER NOT NULL,
     max_body_sp INTEGER DEFAULT 0,
     max_head_sp INTEGER DEFAULT 0,
-    max_move INTEGER DEFAULT 5
+    max_move INTEGER DEFAULT 5,
+    base_combate INTEGER DEFAULT 10,    
+    base_iniciativa INTEGER DEFAULT 4   
 );
--- 2. Puente: Armamento predeterminado del NPC
+
+-- 6. Catálogo de Buffos y Mejoras Generales para NPCs
+CREATE TABLE buffos (
+    id_buffo SERIAL PRIMARY KEY,
+    nombre VARCHAR(100) UNIQUE NOT NULL,
+    descripcion TEXT NOT NULL
+);
+
+-- 7. Puente: Armamento predeterminado del NPC
 CREATE TABLE npc_armas (
     id_npc INTEGER REFERENCES npc(id_npc) ON DELETE CASCADE,
     id_plantilla INTEGER REFERENCES plantillas_armas(id_plantilla) ON DELETE CASCADE,
     PRIMARY KEY (id_npc, id_plantilla)
 );
 
--- 3. Puente: Mejoras y habilidades del NPC
+-- 8. Puente: Mejoras y habilidades del NPC
 CREATE TABLE npc_buffos (
     id_npc INTEGER REFERENCES npc(id_npc) ON DELETE CASCADE,
     id_buffo INTEGER REFERENCES buffos(id_buffo) ON DELETE CASCADE,
     PRIMARY KEY (id_npc, id_buffo)
 );
 
+
 /* ==============================================================================
-   BLOQUE 2: ESTADO DE PARTIDA (DINÁMICO / PERSISTENTE)
+   BLOQUE 3: ESCUADRA (JUGADORES Y ESTADOS)
 ============================================================================== */
 
--- 4. Personajes de los Usuarios (Contiene estado en tiempo real)
+-- 9. Personajes de los Usuarios (Contiene estado en tiempo real)
 CREATE TABLE jugadores (
     id_jugador SERIAL PRIMARY KEY,
     nombre VARCHAR(100) UNIQUE NOT NULL,
@@ -89,16 +122,7 @@ CREATE TABLE jugadores (
     death_penalty INTEGER DEFAULT 0
 );
 
--- 5. Puente: Inventario activo del Jugador
-CREATE TABLE inventario_jugadores (
-    id_jugador INTEGER REFERENCES jugadores(id_jugador) ON DELETE CASCADE,
-    id_plantilla INTEGER REFERENCES plantillas_armas(id_plantilla) ON DELETE RESTRICT,
-    balas_actuales INTEGER NOT NULL,
-    PRIMARY KEY (id_jugador, id_plantilla)
-);
-
-
--- 1. Catálogo Base con Columnas Opcionales para Tratamiento
+-- 10. Catálogo Base con Columnas Opcionales para Tratamiento (Estados)
 CREATE TABLE catalogo_debuffos (
     id_debufo SERIAL PRIMARY KEY,
     nombre VARCHAR(50) NOT NULL,
@@ -106,32 +130,47 @@ CREATE TABLE catalogo_debuffos (
     tipo VARCHAR(20) CHECK (tipo IN ('Temporal', 'Permanente')) NOT NULL,
     remedio_rapido TEXT,
     tratamiento TEXT,
-    UNIQUE (nombre, tipo) -- NUEVO: Permite repetir nombres si son de distinto tipo
+    UNIQUE (nombre, tipo) 
 );
 
--- 2. Tabla Puente (Se mantiene simple y única)
+-- 11. Puente: Inventario activo del Jugador
+CREATE TABLE inventario_jugadores (
+    id_jugador INTEGER REFERENCES jugadores(id_jugador) ON DELETE CASCADE,
+    id_plantilla INTEGER REFERENCES plantillas_armas(id_plantilla) ON DELETE RESTRICT,
+    balas_actuales INTEGER NOT NULL,
+    PRIMARY KEY (id_jugador, id_plantilla)
+);
+
+-- 12. Puente: Estados que afectan al Jugador
 CREATE TABLE jugadores_debuffos (
     id_jugador INTEGER REFERENCES jugadores(id_jugador) ON DELETE CASCADE,
     id_debufo INTEGER REFERENCES catalogo_debuffos(id_debufo) ON DELETE CASCADE,
     PRIMARY KEY (id_jugador, id_debufo)
 );
-
 /* ==============================================================================
-   FASE 2: TABLA DE VINCULACIÓN (Puente)
+   FASE : POBLADO DE DATOS ARMAS 
 ============================================================================== */
-
--- 4. Tabla relacional Muchos a Muchos
-CREATE TABLE armas_propiedades (
-    id_plantilla INTEGER REFERENCES plantillas_armas(id_plantilla) ON DELETE CASCADE,
-    id_propiedad INTEGER REFERENCES propiedades_armas(id_propiedad) ON DELETE CASCADE,
-    PRIMARY KEY (id_plantilla, id_propiedad)
-);
-
 /* ==============================================================================
-   FASE 3: POBLADO DE DATOS (DML)
+   INSERCIÓN DE DATOS: TABLAS DE DIFICULTAD (DVs) SEGÚN MANUAL CYBERPUNK RED
 ============================================================================== */
+INSERT INTO dv_tablas 
+(nombre_esquema, dist_0_6m, dist_7_12m, dist_13_25m, dist_26_50m, dist_51_100m, dist_101_200m, dist_201_400m, dist_401_800m) 
+VALUES
+-- Armas de Disparo Estándar (Tiro a Tiro)
+('Pistolas',                 13, 15, 20, 25, 30, 30, NULL, NULL),
+('Subfusiles',               15, 13, 15, 20, 25, 25,   30, NULL),
+('Escopetas (bala)',         13, 15, 20, 25, 30, 35, NULL, NULL),
+('Fusiles de Asalto',        17, 16, 15, 13, 15, 20,   25,   30),
+('Fusiles de Francotirador', 30, 25, 25, 20, 15, 16,   17,   20),
+('Arcos y Ballestas',        15, 13, 15, 17, 20, 22, NULL, NULL),
+('Lanzagranadas',            16, 15, 15, 17, 20, 22,   25, NULL),
+('Lanzamisiles',             17, 16, 15, 15, 20, 20,   25,   30),
+('Lanzamiento', 16, 15, 15, NULL, NULL, NULL, NULL, NULL),
+-- Tablas Especiales para Disparo Automático (Autofuego)
+('Subfusil (Autofuego)',          20, 17, 20, 25, 30, NULL, NULL, NULL),
+('Fusil de Asalto (Autofuego)',   22, 20, 17, 20, 25, NULL, NULL, NULL);
 
--- Inserción de Propiedades [cite: 19, 20, 21]
+-- Inserción de Propiedades 
 INSERT INTO propiedades_armas (nombre, descripcion) VALUES 
 ('Disparo Automático (3)', 'Permite multiplicar el daño base con un máximo de 3.'),
 ('Disparo Automático (4)', 'Permite multiplicar el daño base con un máximo de 4.'),
@@ -143,27 +182,44 @@ INSERT INTO propiedades_armas (nombre, descripcion) VALUES
 ('Efecto Incendiario', 'El objetivo arde (Fuego Mortal), al final de cada turno. Apagarse requiere 1 Acción Completa.'),
 ('Misil', 'Daño "8d6". Al penetrar armadura, reduce 2 puntos de SP en lugar de 1.');
 
--- Poblado de Plantillas de Armas [cite: 22]
-INSERT INTO plantillas_armas (nombre, max_balas) VALUES 
-('Pistola mediana', 12),
-('Pistola pesada', 8),
-('Pistola muy pesada', 8),
-('Subfusil', 30),
-('Subfusil pesado', 40),
-('Escopeta', 4),
-('Fusil de asalto', 25),
-('Fusil de francotirador', 4),
-('Lanzagranadas', 2), 
-('Lanzamisiles', 1),
-('Arma cac (Media)', 0),
-('Arma cac (Pesada)', 0),
-('Arma cac (Muy pesada)', 0),
-('Granada estándar', 1),
-('Granada de humo', 1),
-('Granada aturdidora', 1),
-('Granada incendiaria', 1); 
+/* ==============================================================================
+   INSERCIÓN DE DATOS: PLANTILLAS DE ARMAS VINCULADAS A DVs
+============================================================================== */
+INSERT INTO plantillas_armas (nombre, max_balas, id_dv_estandar, id_dv_autofuego, dados_dano) VALUES 
+-- Pistolas (DV ID 1)
+('Pistola mediana', 12, 1, NULL, 2),
+('Pistola pesada', 8, 1, NULL, 3),
+('Pistola muy pesada', 8, 1, NULL, 4),
 
--- Vinculación en la Tabla Puente [cite: 23, 24, 25]
+-- Subfusiles (DV ID 2 para normal, DV ID 9 para autofuego)
+('Subfusil', 30, 2, 9, 2),
+('Subfusil pesado', 40, 2, 9, 3),
+
+-- Escopetas (DV ID 3)
+('Escopeta', 4, 3, NULL, 5),
+
+-- Fusiles de asalto (DV ID 4 para normal, DV ID 10 para autofuego)
+('Fusil de asalto', 25, 4, 10, 5),
+
+-- Fusil de francotirador (DV ID 5)
+('Fusil de francotirador', 4, 5, NULL, 5),
+
+-- Armas Pesadas Explosivas (DV ID 7 y 8)
+('Lanzagranadas', 2, 7, NULL, 6), 
+('Lanzamisiles', 1, 8, NULL, 8),
+
+-- Armas Cuerpo a Cuerpo (No usan tabla DV de balística)
+('Arma cac (Media)', 0, NULL, NULL, 2),
+('Arma cac (Pesada)', 0, NULL, NULL, 3),
+('Arma cac (Muy pesada)', 0, NULL, NULL, 4),
+
+-- Granadas Arrojadizas (Usan la tabla DV ID 11, límite 25m)
+('Granada estándar', 1, 11, NULL, 6),
+('Granada de humo', 1, 11, NULL, 0),
+('Granada aturdidora', 1, 11, NULL, 0),
+('Granada incendiaria', 1, 11, NULL, 6);
+
+-- Vinculación en la Tabla Puente 
 INSERT INTO armas_propiedades (id_plantilla, id_propiedad) VALUES 
 ((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Subfusil'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Disparo Automático (3)')),
 ((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Subfusil pesado'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Disparo Automático (3)')),
@@ -180,39 +236,98 @@ INSERT INTO armas_propiedades (id_plantilla, id_propiedad) VALUES
    POBLADO COMPLEMENTARIO: BUFFOS, BESTIARIO Y JUGADORES
 ============================================================================== */
 
--- 1. Poblado del Catálogo de Buffos y Mejoras
 INSERT INTO buffos (nombre, descripcion) VALUES 
-('Sandevistan', 'Iniciativa +3.'),
-('Óptica Kiroshi', 'Visión térmica. Ignora penalizadores por humo u oscuridad.');
+('Óptica Kiroshi', 'Ojos cibernéticos. Permite ver en la oscuridad e interactuar con la red local.'),
+('Sandevistan', 'Acelerador de reflejos. Aumenta la iniciativa y la capacidad de evasión.'),
+('Enlace Inteligente', 'Conexión directa con armas inteligentes. Mejora la puntería base.'),
+('Cibrobrazo', 'Brazo mecánico. Aumenta drásticamente el daño cuerpo a cuerpo y la salud máxima.'),
+('Placas Subdérmicas', 'Blindaje interno. Otorga SP adicional que no se nota a simple vista.'),
+('Cibermodem de Combate', 'Hardware especializado para ejecutar hackeos rápidos en combate.');
 
--- 2. Creación de un NPC de prueba (Plantilla/Bestiario)
--- 2. Creación de NPCs de prueba (Plantilla/Bestiario)
-INSERT INTO npc (nombre, tier, faccion, max_hp, max_body_sp, max_head_sp, max_move) VALUES 
-('Matón Corporativo', 2, 'Corporativo', 35, 7, 7, 5),
-('Pandillero Callejero', 1, 'Maelstrom', 25, 4, 4, 6);
+/* ==============================================================================
+   POBLACIÓN DEL BESTIARIO: NPCS POR TIERS
+============================================================================== */
+INSERT INTO npc 
+(nombre, tier, faccion, max_hp, max_body_sp, max_head_sp, max_move, base_combate, base_iniciativa) 
+VALUES 
+-- TIER 1: Carne de Cañón (Combate: 8-9 | SP: 0 o 4)
+('Street Kid',                1, 'Genérico',    20,  0,  0, 5,  8,  4),
+('Maelstrom Kid',             1, 'Maelstrom',   25,  4,  4, 6,  9,  5),
+('Dron Básico',               1, 'Dron',        20,  0,  0, 8,  10, 5), 
 
--- 3. Equipar armamento a los NPCs
--- El matón usará un Fusil de Asalto. El pandillero usará una Pistola pesada y un Arma cac.
+-- TIER 2: Amenazas Estándar (Combate: 9-10 | SP: 4 o 7 si es Corpo)
+('Arasaka RAT',               2, 'Arasaka',     30,  7,  7, 5, 10, 5), 
+('Netrunner Hostil',          2, 'Genérico',    30,  4,  4, 5,  9, 5),
+('Punk',      2, 'Genérico',    35,  4,  4, 6, 10, 6), 
+
+-- TIER 3: Élites y Tenientes (Combate: 11-13 | SP: 7 a 11)
+('Soldado de Asalto Militech',3, 'Militech',    45, 15, 15, 4, 10, 6), 
+('Arasaka Elite Pesada',      3, 'Arasaka',     40, 16, 16, 4, 11, 7), 
+('Jefe de Banda',             3, 'Genérico',    50, 11, 11, 5, 12, 6); 
+
+
+/* ==============================================================================
+   2. EQUIPAMIENTO DE ARMAMENTO (npc_armas)
+============================================================================== */
 INSERT INTO npc_armas (id_npc, id_plantilla) VALUES 
-((SELECT id_npc FROM npc WHERE nombre = 'Matón Corporativo'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Fusil de asalto')),
-((SELECT id_npc FROM npc WHERE nombre = 'Pandillero Callejero'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola pesada')),
-((SELECT id_npc FROM npc WHERE nombre = 'Pandillero Callejero'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Arma cac (Media)'));
+-- Tier 1
+((SELECT id_npc FROM npc WHERE nombre = 'Street Kid'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola mediana')),
+((SELECT id_npc FROM npc WHERE nombre = 'Street Kid'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Arma cac (Media)')),
 
--- 4. Asignar mejoras según Identidad de Facción
+((SELECT id_npc FROM npc WHERE nombre = 'Maelstrom Kid'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Subfusil')),
+((SELECT id_npc FROM npc WHERE nombre = 'Maelstrom Kid'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Arma cac (Pesada)')),
+
+((SELECT id_npc FROM npc WHERE nombre = 'Dron Básico'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Subfusil')),
+
+-- Tier 2
+((SELECT id_npc FROM npc WHERE nombre = 'Arasaka RAT'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola pesada')),
+((SELECT id_npc FROM npc WHERE nombre = 'Arasaka RAT'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Subfusil pesado')),
+
+((SELECT id_npc FROM npc WHERE nombre = 'Netrunner Hostil'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola pesada')),
+
+((SELECT id_npc FROM npc WHERE nombre = 'Punk'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Escopeta')),
+((SELECT id_npc FROM npc WHERE nombre = 'Punk'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Arma cac (Media)')),
+
+-- Tier 3
+((SELECT id_npc FROM npc WHERE nombre = 'Soldado de Asalto Militech'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Fusil de asalto')),
+((SELECT id_npc FROM npc WHERE nombre = 'Soldado de Asalto Militech'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Granada estándar')),
+((SELECT id_npc FROM npc WHERE nombre = 'Soldado de Asalto Militech'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Granada aturdidora')),
+
+((SELECT id_npc FROM npc WHERE nombre = 'Arasaka Elite Pesada'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Fusil de asalto')),
+((SELECT id_npc FROM npc WHERE nombre = 'Arasaka Elite Pesada'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola muy pesada')),
+((SELECT id_npc FROM npc WHERE nombre = 'Arasaka Elite Pesada'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Arma cac (Muy pesada)')),
+
+((SELECT id_npc FROM npc WHERE nombre = 'Jefe de Banda'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Subfusil pesado')),
+((SELECT id_npc FROM npc WHERE nombre = 'Jefe de Banda'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Escopeta')),
+((SELECT id_npc FROM npc WHERE nombre = 'Jefe de Banda'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Arma cac (Pesada)'));
+
+/* ==============================================================================
+   3. ASIGNACIÓN DE MEJORAS Y CIBEREQUIPO (npc_buffos)
+============================================================================== */
 INSERT INTO npc_buffos (id_npc, id_buffo) VALUES 
--- El Matón Corporativo (Tier 2) recibe el Sandevistan (Agilidad Corporativa)
-((SELECT id_npc FROM npc WHERE nombre = 'Matón Corporativo'), 
- (SELECT id_buffo FROM buffos WHERE nombre = 'Sandevistan')),
+-- Tier 1
+((SELECT id_npc FROM npc WHERE nombre = 'Maelstrom Kid'), (SELECT id_buffo FROM buffos WHERE nombre = 'Óptica Kiroshi')),
+((SELECT id_npc FROM npc WHERE nombre = 'Dron Básico'), (SELECT id_buffo FROM buffos WHERE nombre = 'Óptica Kiroshi')),
 
--- El Pandillero Callejero (Maelstrom - Tier 1) recibe la Óptica Kiroshi (Toque del Clan)
-((SELECT id_npc FROM npc WHERE nombre = 'Pandillero Callejero'), 
- (SELECT id_buffo FROM buffos WHERE nombre = 'Óptica Kiroshi'));
+-- Tier 2
+((SELECT id_npc FROM npc WHERE nombre = 'Arasaka RAT'), (SELECT id_buffo FROM buffos WHERE nombre = 'Enlace Inteligente')),
+((SELECT id_npc FROM npc WHERE nombre = 'Netrunner Hostil'), (SELECT id_buffo FROM buffos WHERE nombre = 'Cibermodem de Combate')),
+((SELECT id_npc FROM npc WHERE nombre = 'Punk'), (SELECT id_buffo FROM buffos WHERE nombre = 'Cibrobrazo')),
 
+-- Tier 3
+((SELECT id_npc FROM npc WHERE nombre = 'Soldado de Asalto Militech'), (SELECT id_buffo FROM buffos WHERE nombre = 'Placas Subdérmicas')),
+((SELECT id_npc FROM npc WHERE nombre = 'Soldado de Asalto Militech'), (SELECT id_buffo FROM buffos WHERE nombre = 'Enlace Inteligente')),
+
+((SELECT id_npc FROM npc WHERE nombre = 'Arasaka Elite Pesada'), (SELECT id_buffo FROM buffos WHERE nombre = 'Sandevistan')),
+((SELECT id_npc FROM npc WHERE nombre = 'Arasaka Elite Pesada'), (SELECT id_buffo FROM buffos WHERE nombre = 'Placas Subdérmicas')),
+
+((SELECT id_npc FROM npc WHERE nombre = 'Jefe de Banda'), (SELECT id_buffo FROM buffos WHERE nombre = 'Sandevistan')),
+((SELECT id_npc FROM npc WHERE nombre = 'Jefe de Banda'), (SELECT id_buffo FROM buffos WHERE nombre = 'Cibrobrazo'));
 -- 5. Creación de un Jugador de prueba (Estado Activo)
 -- Note que aquí sí se declaran los valores actuales (hp, body_sp) iguales a los máximos al inicio.
 INSERT INTO jugadores (nombre, max_hp, hp, max_body_sp, body_sp, max_head_sp, head_sp, max_luck, luck, max_move, move) VALUES 
-('V', 45, 45, 11, 11, 11, 11, 8, 8, 8, 8),
-('Jackie', 60, 60, 14, 14, 11, 11, 5, 5, 6, 6);
+('V', 45, 45, 7, 7, 7, 7, 8, 8, 8, 8),
+('Jackie', 60, 60, 4, 4, 4, 4, 5, 5, 6, 6);
 
 -- 6. Equipar inventario a los jugadores (Con seguimiento de balas)
 -- V lleva un Subfusil (lleno) y Jackie una Escopeta (llena).

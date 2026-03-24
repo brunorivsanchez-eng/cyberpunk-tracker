@@ -5,10 +5,15 @@
 /* ------------------------------------------------------------------------------
    1. FONDOS Y CONTENEDORES BASE
 ------------------------------------------------------------------------------ */
+/* [INFO] QMainWindow aplica a toda la ventana principal de la aplicación (main.py). 
+   Es el fondo negro profundo de todo el programa. */
 QMainWindow { 
     background-color: #121212; 
 }
 
+/* [INFO] QFrame#ContenedorPersonaje es la clave maestra de ui_tarjetas.py.
+   Afecta a la clase 'TarjetaBase' y todas sus hijas. Es el rectángulo gris 
+   que envuelve a cada personaje o NPC. */
 QFrame#ContenedorPersonaje {
     background-color: #1E1E1E;
     border: 1px solid #333333;
@@ -18,6 +23,12 @@ QFrame#ContenedorPersonaje {
 /* ------------------------------------------------------------------------------
    2. ESTILOS GENERALES DE WIDGETS (Por defecto)
 ------------------------------------------------------------------------------ */
+/* [INFO] Estas reglas se aplican a TODOS los inputs de texto y menús desplegables 
+   que NO tengan un ID específico (setObjectName).
+   Afectan a:
+   - El input de daño manual en ui_tarjetas.py (self.input_dano)
+   - Los combos de Debufos Permanentes y Temporales.
+   - El buscador del Bestiario en ui_dialogos.py. */
 QLineEdit {
     background-color: #2C2C2C;
     color: white;
@@ -43,6 +54,8 @@ QComboBox QAbstractItemView {
     selection-background-color: #555555;
 }
 
+/* [INFO] QToolTip modifica los recuadros de información que aparecen al dejar 
+   el mouse quieto sobre las armas (si tienen efecto) o sobre las Mejoras Cibernéticas. */
 QToolTip {
     background-color: #1E1E1E;
     color: #00FFFF;
@@ -57,6 +70,9 @@ QToolTip {
    3. ETIQUETAS Y TEXTOS (Labels)
 ------------------------------------------------------------------------------ */
 /* Nombres y Títulos Principales */
+/* [INFO] NombrePJ modifica el nombre del personaje en la esquina superior 
+   izquierda de su tarjeta. OJO: Este verde (#00FF00) será sobrescrito dinámicamente
+   por Python en el método 'sincronizar_interfaz' para ponerle el color del Token. */
 QLabel#NombrePJ {
     color: #00FF00;
     font-family: 'Orbitron', sans-serif;
@@ -64,6 +80,9 @@ QLabel#NombrePJ {
     font-weight: bold;
 }
 
+/* [INFO] TituloSeccion es un remanente de la arquitectura vieja. 
+   Actualmente ui_paneles.py ya no usa este ID, porque los títulos de 
+   "JUGADORES" y "ADVERSARIOS" tienen sus estilos integrados en Python. */
 QLabel#TituloSeccion { 
     color: #555555; 
     font-size: 18px; 
@@ -71,6 +90,7 @@ QLabel#TituloSeccion {
 }
 
 /* Títulos de Columnas */
+/* [INFO] Modifican los encabezados estáticos dentro de ui_tarjetas.py */
 QLabel#TituloColumnaArmas { color: #FF00FF; font-weight: bold; font-family: 'Arial', sans-serif; font-size: 11px; }
 QLabel#TituloColumnaMejoras { color: #00FFFF; font-weight: bold; font-family: 'Arial', sans-serif; font-size: 11px; }
 QLabel#LblTitTemp { color: #FFD700; font-weight: bold; font-size: 11px; }
@@ -79,6 +99,7 @@ QLabel#LblFuegoTit { color: #FF4500; font-weight: bold; font-size: 11px; }
 QLabel#LblStatTit { color: white; font-weight: bold; font-family: 'Arial', sans-serif; font-size: 11px; }
 
 /* Valores y Detalles */
+/* [INFO] Afectan a los números y descripciones pequeñas dentro de las tarjetas */
 QLabel#ValorDeathPenalty { color: #ECECD2; font-weight: bold; font-size: 13px; font-family: 'Orbitron'; }
 QLabel#LblValArma { color: white; font-weight: bold; font-size: 12px; }
 QLabel#LblNombreArma { color: white; font-size: 10px; padding-bottom: 2px; }
@@ -89,6 +110,8 @@ QLabel#LblTextoGris { color: #777777; font-size: 10px; font-style: italic; }
    4. BOTONES (Interacciones)
 ------------------------------------------------------------------------------ */
 /* Botón Base */
+/* [INFO] Afecta a cualquier botón que no tenga un ID. Por ejemplo, los botones
+   de ataque ("Cuerpo", "Cabeza", "Directo") en ui_tarjetas.py tomarán este estilo. */
 QPushButton {
     background-color: #333333;
     color: #00FF00;
@@ -100,17 +123,23 @@ QPushButton {
 QPushButton:hover { background-color: #444444; }
 
 /* Botones de Paneles Principales */
+/* [INFO] Estos tres botones ya NO se usan. Fueron reemplazados por el 
+   botón unificado "🌐 ACCIÓN GLOBAL AoE" en ui_paneles.py, el cual tiene
+   sus estilos incrustados en Python. Puedes borrar estas 3 líneas. */
 QPushButton#BtnAoEDanio { background-color: #FF4500; color: white; font-weight: bold; font-size: 12px; padding: 4px; }
 QPushButton#BtnAoEEstados { background-color: #B8860B; color: black; font-weight: bold; font-size: 12px; padding: 4px; }
 QPushButton#BtnAgregarNPC { background-color: #4B0082; color: white; font-weight: bold; padding: 4px; }
 
 /* Botones de Tarjetas (PersonajeWidget) */
+/* [INFO] Afectan a los botones de acción específicos de cada personaje. */
 QPushButton#BtnReset { background-color: #8B0000; color: white; font-weight: bold; border-radius: 4px; }
 QPushButton#BtnCurar { background-color: #2E7D32; color: white; }
 QPushButton#BtnFuego { background-color: #8B0000; color: white; font-size: 10px; }
 QPushButton#BtnAddRemove { background-color: #444444; color: white; font-weight: bold; border-radius: 3px; }
 
 /* Botones de Ajuste (+ / -) */
+/* [INFO] Afecta a todos los botoncitos pequeños de sumar/restar munición,
+   subir/bajar SP, y alterar el Death Penalty. */
 QPushButton#BtnAjuste {
     font-size: 11px;
     background-color: #2C2C2C;
@@ -122,6 +151,7 @@ QPushButton#BtnAjuste:hover { background-color: #555555; }
    5. BARRAS DE PROGRESO (Estadísticas Vitales)
 ------------------------------------------------------------------------------ */
 /* Barra Base */
+/* [INFO] Define el contenedor de las barras de HP, Body SP, Head SP, Move, etc. */
 QProgressBar {
     border: 1px solid #444444;
     border-radius: 6px;
@@ -135,6 +165,10 @@ QProgressBar {
 QProgressBar::chunk { border-radius: 5px; }
 
 /* Colores Específicos por Stat */
+/* [INFO] La barra de Vida (HP) NO está aquí porque Python cambia su color 
+   (Rojo vs Color Token) dinámicamente en 'sincronizar_interfaz'. 
+   Estas líneas colorean las estadísticas estáticas leyendo el f"Barra{attr}" 
+   que definimos en el bucle de ui_tarjetas.py. */
 QProgressBar#BarraBODYSP::chunk { background-color: #4444FF; } /* Azul */
 QProgressBar#BarraHEADSP::chunk { background-color: #44FFFF; } /* Cian */
 QProgressBar#BarraMOVE::chunk   { background-color: #C05223; } /* Naranja */
@@ -143,5 +177,8 @@ QProgressBar#BarraLUCK::chunk   { background-color: #FFCC00; } /* Amarillo */
 /* ------------------------------------------------------------------------------
    6. EXCEPCIONES ESPECÍFICAS
 ------------------------------------------------------------------------------ */
+/* [INFO] Remanentes de diálogos antiguos. Probablemente ya no tengan 
+   efecto en tu nueva arquitectura de ui_dialogos.py. */
 QComboBox#ComboDialogo { padding: 2px; }
 QComboBox#ComboPlantillasNPC { padding: 3px; }
+
