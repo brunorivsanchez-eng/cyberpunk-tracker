@@ -10,6 +10,52 @@ class NoScrollComboBox(QComboBox):
     def wheelEvent(self, event):
         event.ignore()
 
+def construir_tooltip(titulo, descripcion, remedio=None, tratamiento=None, font_size=11, tabla_dv=None):
+    """Genera un recuadro HTML estandarizado para la información flotante."""
+    # Contenedor principal
+    html = f"<div style='background-color: #1A1A1A; color: #FFD700; padding: 8px; border: 1px solid #555555; font-family: Arial; font-size: {font_size}px;'>"
+    html += f"<b style='font-size: 13px;'>{titulo}</b><br>"
+    
+    if descripcion:
+        html += f"<span style='color: #FFFFFF;'>{descripcion}</span>"
+    
+    # Textos médicos (para estados)
+    if remedio or tratamiento:
+        html += "<br><br>"
+    if remedio:
+        html += f"<span style='color: #00FFFF;'><b>Remedio Rápido:</b> {remedio}</span><br>"
+    if tratamiento:
+        html += f"<span style='color: #00FF00;'><b>Tratamiento:</b> {tratamiento}</span>"
+        
+    # NUEVO DISEÑO VERTICAL: Tabla de Valores de Dificultad (VD)
+    if tabla_dv and any(v is not None for v in tabla_dv):
+        # Convertimos nulos a "-"
+        v = [str(val) if val is not None else "-" for val in tabla_dv]
+        encabezados = ["0-6", "7-12", "13-25", "26-50", "51-100", "101-200", "201-400", "401-800"]
+        
+        html += "<br><br><b style='color:#00FFFF; font-size: 11px; font-family: Orbitron, sans-serif;'>DIFICULTAD DE DISPARO:</b><br>"
+        # Estilo principal de la tabla (Borde exterior cian)
+        html += "<table style='width: 150px; text-align:center; border: 1px solid #00FFFF; border-collapse: collapse; margin-top:5px; font-size:11px;'>"
+        
+        # Cabeceras de las dos columnas
+        html += "<tr style='background-color: #002222; color: #00FFFF;'>"
+        html += "<th style='border: 1px solid #008888; padding: 4px;'>Distancia (m)</th>"
+        html += "<th style='border: 1px solid #008888; padding: 4px;'>VD</th>"
+        html += "</tr>"
+        
+        # Filas de datos emparejadas hacia abajo
+        for dist, valor in zip(encabezados, v):
+            color_texto = "#FF4444" if valor == "-" else "#FFFFFF"
+            html += "<tr style='background-color: #111111;'>"
+            html += f"<td style='border: 1px solid #008888; padding: 4px; color: #CCCCCC;'>{dist}</td>"
+            html += f"<td style='border: 1px solid #008888; padding: 4px; color: {color_texto}; font-weight: bold;'>{valor}</td>"
+            html += "</tr>"
+        
+        html += "</table>"
+        
+    html += "</div>"
+    return html
+
 # =============================================================================
 # CLASE BASE: LA PLANTILLA COMPARTIDA (TEMPLATE METHOD PATTERN)
 # =============================================================================
@@ -50,7 +96,6 @@ class TarjetaBase(QFrame):
         return [
             ("BODY SP", "body_sp", "max_body_sp"),
             ("HEAD SP", "head_sp", "max_head_sp"),
-            ("MOVE", "move", "max_move")
         ]
 
     def _construir_cabecera(self):
@@ -118,6 +163,8 @@ class TarjetaBase(QFrame):
         col_izq = QWidget()
         l_izq = QVBoxLayout(col_izq)
         l_izq.setContentsMargins(0, 0, 0, 0)
+        
+        # Generar las filas de barras (SP, MOVE, LUCK)
         for nom_ui, attr, attr_max in self._obtener_stats_col_izq():
             fila = QHBoxLayout()
             lbl = QLabel(nom_ui)
@@ -127,12 +174,9 @@ class TarjetaBase(QFrame):
             val_max = getattr(self.personaje_obj, attr_max)
             
             barra = QProgressBar()
-            # Si el max es 0, le decimos al motor que es 1 para detener la animación,
-            # pero forzamos el texto visual a usar la variable real val_max.
             barra.setRange(0, val_max if val_max > 0 else 1)
             barra.setValue(getattr(self.personaje_obj, attr))
             barra.setFormat(f"%v / {val_max}") 
-            # -------------------------------------------------
             
             barra.setFixedWidth(115)
             barra.setObjectName(f"Barra{attr.replace('_', '').upper()}") 
@@ -172,11 +216,61 @@ class TarjetaBase(QFrame):
         layout_stats.addStretch(1)
         
         self.layout_principal.addLayout(layout_stats)
+        
+    def _construir_fila_dr(self, layout):
+        """Crea la fila para la reducción de daño endurecido."""
+        fila = QHBoxLayout()
+        lbl = QLabel("🛡️ RED. DAÑO") # Texto simplificado
+        lbl.setFixedWidth(85) # <--- ANCHO UNIFICADO
+        lbl.setObjectName("LblStatTit") 
+        
+        valor_actual = getattr(self.personaje_obj, "reduccion_danio", 0)
+        input_dr = QLineEdit(str(valor_actual))
+        input_dr.setFixedWidth(40)
+        input_dr.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        input_dr.setStyleSheet("color: #FFA500; font-weight: bold; background-color: #000000; border: 1px solid #555;")
+        
+        def actualizar_modelo(texto):
+            if texto.isdigit():
+                self.personaje_obj.reduccion_danio = int(texto)
+            elif texto == "":
+                self.personaje_obj.reduccion_danio = 0
+                
+        input_dr.textChanged.connect(actualizar_modelo)
+        self.widgets_referencia["reduccion_danio"] = input_dr 
+        
+        fila.addWidget(lbl)
+        fila.addWidget(input_dr)
+        fila.addStretch(1)
+        layout.addLayout(fila)
+
+    def _construir_fila_move(self, layout):
+        """Crea una fila estática para mostrar la capacidad de movimiento total."""
+        fila = QHBoxLayout()
+        lbl = QLabel("👟 MOVE")
+        lbl.setFixedWidth(85) # <--- ANCHO UNIFICADO
+        lbl.setObjectName("LblStatTit") 
+        
+        # Leemos solo el máximo de movimiento
+        valor_move = getattr(self.personaje_obj, "max_move", 0)
+        lbl_val = QLabel(f"{valor_move} cas.")
+        lbl_val.setStyleSheet("color: #00FFFF; font-weight: bold; font-family: 'Orbitron', sans-serif;")
+        
+        fila.addWidget(lbl)
+        fila.addWidget(lbl_val)
+        fila.addStretch(1)
+        layout.addLayout(fila)
+
+    def _agregar_elementos_col_der(self, layout): 
+        """Añade los elementos comunes de la columna derecha."""
+        self._construir_fila_move(layout)  # 1. Indicador estático de Movimiento
+        self._construir_fila_dr(layout)    # 2. Reducción de Daño
+        self._construir_fila_fuego(layout) # 3. Mecánicas de Fuego
 
     def _construir_fila_fuego(self, layout):
         fila = QHBoxLayout()
-        lbl_fuego = QLabel("🔥Fire🔥")
-        lbl_fuego.setFixedWidth(60)
+        lbl_fuego = QLabel("🔥 FIRE") # Texto simplificado
+        lbl_fuego.setFixedWidth(85) # <--- ANCHO UNIFICADO
         lbl_fuego.setObjectName("LblFuegoTit") 
 
         b5 = QPushButton("🔥")
@@ -214,13 +308,16 @@ class TarjetaBase(QFrame):
                 lbl_n.setObjectName("LblNombreArma") 
 
                 # --- RESTAURACIÓN DE TOOLTIP DE ARMAS ---
-                if "efecto" in datos and datos["efecto"]:
-                    texto_tooltip = f"""
-                    <div style='background-color: #1E1E1E; color: #FFD700; padding: 5px; border: 1px solid #555555; font-family: Arial; font-size: 12px;'>
-                        <b>{n_arma}</b><br>
-                        <span style='color: #FFFFFF;'>Efecto: {datos['efecto']}</span>
-                    </div>
-                    """
+                # Mostrar el tooltip si el arma tiene un efecto especial o si tiene tabla de VD (armas a distancia)
+                if ("efecto" in datos and datos["efecto"]) or ("dv_valores" in datos and any(datos["dv_valores"])):
+                    efecto_str = f"Efecto: {datos['efecto']}" if datos.get("efecto") else ""
+                    
+                    texto_tooltip = construir_tooltip(
+                        n_arma, 
+                        efecto_str, 
+                        font_size=12, 
+                        tabla_dv=datos.get("dv_valores")
+                    )
                     lbl_n.setToolTip(texto_tooltip)
                     lbl_n.setCursor(Qt.CursorShape.WhatsThisCursor)
                 # ----------------------------------------
@@ -253,11 +350,18 @@ class TarjetaBase(QFrame):
                     fila.addWidget(b_1)
                     fila.addWidget(b_max)
                 else:
+                    # --- NUEVO DISEÑO PARA ARMAS MELEE ---
                     fila.addStretch(1)
                     lbl_melee = QLabel("Cuerpo a Cuerpo")
                     lbl_melee.setObjectName("LblTextoGris") 
+                    
+                    b_atacar = QPushButton("⚔️ ATACAR")
+                    b_atacar.setObjectName("BtnAjuste")
+                    # Reutilizamos la función de disparo, pero enviamos 1 (que luego ignoraremos)
+                    b_atacar.clicked.connect(lambda checked, n=n_arma: self._ui_ejecutar_disparo(n, 1))
+                    
                     fila.addWidget(lbl_melee)
-                    fila.addStretch(1)
+                    fila.addWidget(b_atacar)
                 l.addLayout(fila)
         else:
             lbl_sin = QLabel("Sin armas equipadas")
@@ -332,21 +436,15 @@ class TarjetaBase(QFrame):
             
             # --- RESTAURACIÓN DE TOOLTIP DE ESTADOS ---
             if item.get("tipo") == "Permanente" and item["nombre"] != "---":
-                tooltip = f"""
-                <div style='background-color: #1E1E1E; color: #FFD700; padding: 5px; border: 1px solid #555555; font-family: Arial; font-size: 11px;'>
-                    <b>{item['nombre']}</b><br>
-                    <span style='color: #FFFFFF;'>{item['descripcion']}</span><br><br>
-                    <span style='color: #00FFFF;'><b>Remedio Rápido:</b> {item.get('remedio_rapido', 'N/D')}</span><br>
-                    <span style='color: #00FF00;'><b>Tratamiento:</b> {item.get('tratamiento', 'N/D')}</span>
-                </div>
-                """
+                tooltip = construir_tooltip(
+                    item['nombre'], 
+                    item['descripcion'], 
+                    remedio=item.get('remedio_rapido', 'N/D'), 
+                    tratamiento=item.get('tratamiento', 'N/D')
+                )
             else:
-                tooltip = f"""
-                <div style='background-color: #1E1E1E; color: #FFD700; padding: 5px; border: 1px solid #555555; font-family: Arial; font-size: 11px;'>
-                    <b>{item['nombre']}</b><br>
-                    <span style='color: #FFFFFF;'>{item.get('descripcion', '')}</span>
-                </div>
-                """
+                tooltip = construir_tooltip(item['nombre'], item.get('descripcion', ''))
+                
             combo.setItemData(idx, tooltip, Qt.ItemDataRole.ToolTipRole)
             # ------------------------------------------
 
@@ -408,8 +506,7 @@ class TarjetaBase(QFrame):
     def _ui_dano_fijo(self, c): controlador.aplicar_dano_fijo(self.personaje_obj, c); self.sincronizar_interfaz()
     def _ui_ajustar_municion(self, a, c): controlador.ajustar_municion_arma(self.personaje_obj, a, c); self.sincronizar_interfaz()
     def _ui_recargar_max(self, a): controlador.recargar_arma_maxima(self.personaje_obj, a); self.sincronizar_interfaz()
-    # ==================================================================
-    # NUEVO MÉTODO: PEGAR EXACTAMENTE AQUÍ CON ESTA MISMA ALINEACIÓN
+    
     # ==================================================================
     def _ui_ejecutar_disparo(self, nombre_arma, cantidad):
         """
@@ -424,17 +521,19 @@ class TarjetaBase(QFrame):
             return
 
         es_npc = getattr(self.personaje_obj, 'es_npc', False)
+        es_melee = (arma_datos["max"] == 0) # Si su máximo es 0, es cuerpo a cuerpo
 
-        # 2. Validar falta de munición
-        if arma_datos["actual"] < cantidad:
+        # 2. Validar falta de munición (SOLO SI NO ES MELEE)
+        if not es_melee and arma_datos["actual"] < cantidad:
             # Solo informamos en el panel si es un NPC
             if es_npc and hasattr(self, 'lbl_resultado'):
                 self.lbl_resultado.setText(f"<b style='color: #FF0000;'>⚠️ {nombre_arma.upper()} SIN BALAS</b>")
             return
 
-        # 3. Restar munición lógicamente (Aplica a todos)
-        controlador.ajustar_municion_arma(self.personaje_obj, nombre_arma, -cantidad)
-        self.sincronizar_interfaz()
+        # 3. Restar munición lógicamente (SOLO SI NO ES MELEE)
+        if not es_melee:
+            controlador.ajustar_municion_arma(self.personaje_obj, nombre_arma, -cantidad)
+            self.sincronizar_interfaz()
 
         # 4. Si NO es NPC o no tiene panel de resultados, terminamos aquí
         if not es_npc or not hasattr(self, 'lbl_resultado'):
@@ -506,9 +605,13 @@ class TarjetaJugador(TarjetaBase):
         layout.addWidget(btn_curar)
 
     def _agregar_elementos_col_der(self, layout):
+        super()._agregar_elementos_col_der(layout)
+        
         fila_death = QHBoxLayout()
-        lbl_tit = QLabel("💀☠️💀"); lbl_tit.setFixedWidth(60)
+        lbl_tit = QLabel("💀☠️💀")
+        lbl_tit.setFixedWidth(85) # <--- ANCHO UNIFICADO
         lbl_tit.setObjectName("LblStatTit") 
+        
         lbl_val = QLabel(str(self.personaje_obj.death_penalty))
         lbl_val.setFixedWidth(25)
         lbl_val.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -524,8 +627,6 @@ class TarjetaJugador(TarjetaBase):
         fila_death.addWidget(b_menos); fila_death.addWidget(b_mas)
         fila_death.addStretch(1)
         layout.addLayout(fila_death)
-        
-        super()._agregar_elementos_col_der(layout)
 
     def _ui_procesar_curacion(self):
         txt = self.input_dano.text()
@@ -556,14 +657,14 @@ class TarjetaNPC(TarjetaBase):
         layout.addWidget(btn_cerrar)
         
     def _agregar_elementos_col_der(self, layout):
-        # 1. Llamar a la clase base para que dibuje la fila de 🔥Fire🔥 primero
+        # 1. Llamar a la clase base para que dibuje la fila de fuego, daño y move primero
         super()._agregar_elementos_col_der(layout)
         
         # 2. Fila de Modificador de Combate
         fila_mod = QHBoxLayout()
         
         lbl_mod = QLabel("🎯 MOD. ATK")
-        lbl_mod.setFixedWidth(75)
+        lbl_mod.setFixedWidth(85) # <--- ANCHO UNIFICADO
         lbl_mod.setObjectName("LblStatTit") 
         
         # Este es el cuadro donde escribirás el -2, +1, etc.
@@ -588,16 +689,16 @@ class TarjetaNPC(TarjetaBase):
         layout.addLayout(fila_mod)
         
 
-        # 2. Construir la nueva fila de Iniciativa debajo
+        # 3. Construir la nueva fila de Iniciativa debajo
         fila_ini = QHBoxLayout()
         
         lbl_ini = QLabel("⚡ INIT")
-        lbl_ini.setFixedWidth(60)
+        lbl_ini.setFixedWidth(85) # <--- ANCHO UNIFICADO
         lbl_ini.setObjectName("LblStatTit") 
         
     
         btn_ini = QPushButton("TIRAR DADOS")
-        btn_ini.setFixedWidth(92) # Ancho alineado visualmente con los botones de fuego
+        btn_ini.setFixedWidth(92) 
         btn_ini.setStyleSheet("color: #00FFFF; font-weight: bold; background-color: #1A1A1A; border: 1px solid #00FFFF; border-radius: 3px;")
         btn_ini.clicked.connect(lambda checked: self._ui_ejecutar_iniciativa())
         
@@ -630,12 +731,7 @@ class TarjetaNPC(TarjetaBase):
                 lbl_m.setObjectName("LblTextoMejora") 
 
                 # --- TOOLTIP DE MEJORAS ---
-                texto_tooltip = f"""
-                <div style='background-color: #1E1E1E; color: #FFD700; padding: 5px; border: 1px solid #555555; font-family: Arial; font-size: 12px;'>
-                    <b>{m['nombre']}</b><br>
-                    <span style='color: #FFFFFF;'>{m.get('descripcion', '')}</span>
-                </div>
-                """
+                texto_tooltip = construir_tooltip(m['nombre'], m.get('descripcion', ''), font_size=12)
                 lbl_m.setToolTip(texto_tooltip)
                 lbl_m.setCursor(Qt.CursorShape.WhatsThisCursor)
                 # --------------------------

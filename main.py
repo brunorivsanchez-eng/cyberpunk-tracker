@@ -134,6 +134,7 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         database.guardar_partida_db(self.pjs, []) 
+        database.cerrar_conexion_pool() 
         event.accept()
 
 if __name__ == "__main__":

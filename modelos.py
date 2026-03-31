@@ -9,6 +9,7 @@ class Personaje:
         # Barras y Estadísticas
         self.max_hp = max_hp
         self.hp = max_hp
+        self.reduccion_danio = 0
         self.max_body_sp = max_body_sp
         self.body_sp = max_body_sp
         self.max_head_sp = max_head_sp
@@ -25,7 +26,8 @@ class Personaje:
 
     def aplicar_impacto(self, danio_bruto, es_cabeza=False, es_melee=False, es_directo=False, reduccion_sp=1):
         if es_directo:
-            self.hp = max(0, self.hp - danio_bruto)
+            danio_final = max(0, danio_bruto - self.reduccion_danio)
+            self.hp = max(0, self.hp - danio_final)
             return
 
         sp_actual = self.head_sp if es_cabeza else self.body_sp
@@ -36,7 +38,8 @@ class Personaje:
         if es_cabeza:
             danio_que_pasa *= 2
             
-        self.hp = max(0, self.hp - danio_que_pasa)
+        danio_final = max(0, danio_que_pasa - self.reduccion_danio)
+        self.hp = max(0, self.hp - danio_final)
         
         if danio_bruto > 0:
             if es_cabeza:
