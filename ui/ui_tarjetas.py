@@ -481,7 +481,7 @@ class TarjetaBase(QFrame):
     def sincronizar_interfaz(self):
         p, w = self.personaje_obj, self.widgets_referencia
         if "hp" in w: w["hp"].setValue(p.hp)
-        for attr in ["body_sp", "head_sp", "luck", "move"]:
+        for attr in ["body_sp", "head_sp", "luck"]:
             if attr in w: w[attr].setValue(getattr(p, attr))
         if "death_penalty" in w: w["death_penalty"].setText(str(p.death_penalty))
         if hasattr(p, "armas") and "armas" in w:

@@ -118,7 +118,6 @@ CREATE TABLE jugadores (
     max_luck INTEGER DEFAULT 0,
     luck INTEGER DEFAULT 0,
     max_move INTEGER DEFAULT 5,
-    move INTEGER DEFAULT 5,
     death_penalty INTEGER DEFAULT 0
 );
 
@@ -237,12 +236,24 @@ INSERT INTO armas_propiedades (id_plantilla, id_propiedad) VALUES
 ============================================================================== */
 
 INSERT INTO buffos (nombre, descripcion) VALUES 
-('Óptica Kiroshi', 'Ojos cibernéticos. Permite ver en la oscuridad e interactuar con la red local.'),
-('Sandevistan', 'Acelerador de reflejos. Aumenta la iniciativa y la capacidad de evasión.'),
-('Enlace Inteligente', 'Conexión directa con armas inteligentes. Mejora la puntería base.'),
-('Cibrobrazo', 'Brazo mecánico. Aumenta drásticamente el daño cuerpo a cuerpo y la salud máxima.'),
-('Placas Subdérmicas', 'Blindaje interno. Otorga SP adicional que no se nota a simple vista.'),
-('Cibermodem de Combate', 'Hardware especializado para ejecutar hackeos rápidos en combate.');
+('Kerenzikov', 'Permite esquivar ataques a distancia.'),
+('Sandevistan', 'Actívalo para añadir +3 a Iniciativa durante 1 combate. Si se activa estando ya en combate, aumenta 3 puntos la Iniciativa actual. Reutilizable tras 24 horas.'),
+('Berserk Implant', 'Actívalo para ignorar los efectos de Herido Grave o Mortal durante 1 combate. Si estás Mortalmente Herido, aún debes realizar la Tirada de Salvación contra la muerte como es habitual. Reutilizable tras 24 horas.'),
+('Self-ICE', 'Protección contra quickhacks. Cada instalación añade un +1 a la dv de que el netruner debe superar para un quickhack. Máximo 3 instalaciones.'),
+('Sistema de puntería', '+1 a tiros de precisión.'),
+('Kiroshi "Stalker"', '+1 a tiradas de ataque al usar Fuego Automático.'),
+('Luz tenue / IR / UV', 'Elimina penalizaciones por oscuridad, humo o niebla.'),
+('Trauma Response Nanomatrix', 'Regenera completamente Cyberware que otorga SP a su máximo. Reutilizable tras 24 horas.'),
+('Microrotors', 'Mejora el control muscular fino; otorga +1 a Brawling, Melee Weapons y Martial Arts.'),
+('Cyberskull', 'Inmune al multiplicador de daño por disparos a la cabeza, inmune a lesiones críticas de "Mandíbula rota" y "Cráneo fracturado".'),
+('Editor de dolor', 'Ignora el estado gravemente herido.'),
+('Shock-n-Awe', 'Malla eléctrica subcutánea. Cualquier enemigo que te impacte con un ataque Cuerpo a Cuerpo (Pelea, Artes Marciales o Armas CC) sufre automáticamente 2 puntos de daño directo a sus PV.'),
+('Nano-Plating', 'Revestimiento de nanocarbono a nivel celular. Reduce en 1 todo el daño entrante que no sea directo.'),
+('ProxiShield', 'Escudo cinético reactivo. Reduce en 2 el daño de cualquier ataque originado a 2 metros o menos de distancia.'),
+('RangeGuard', 'Malla balística de disipación térmica. Reduce en 2 el daño de cualquier ataque a distancia originado a 25 metros o más.'),
+('Shock Absorber', 'Añade +1 a chequeos de Fuego automático o Fuego supresivo. Se puede instalar 1 por brazo.'),
+('Jenkins'' Tendons', 'Fibras musculares sintéticas de contracción rápida. Al usar la acción de Correr, obtienes +4 casillas (puntos de MOV) adicionales de movimiento.'),
+('Fortified Ankles', 'Articulaciones cinéticas y tendones de titanio. Ignoras cualquier penalización de movimiento al saltar.');
 
 /* ==============================================================================
    POBLACIÓN DEL BESTIARIO: NPCS POR TIERS
@@ -304,30 +315,20 @@ INSERT INTO npc_armas (id_npc, id_plantilla) VALUES
 /* ==============================================================================
    3. ASIGNACIÓN DE MEJORAS Y CIBEREQUIPO (npc_buffos)
 ============================================================================== */
-INSERT INTO npc_buffos (id_npc, id_buffo) VALUES 
--- Tier 1
-((SELECT id_npc FROM npc WHERE nombre = 'Maelstrom Kid'), (SELECT id_buffo FROM buffos WHERE nombre = 'Óptica Kiroshi')),
-((SELECT id_npc FROM npc WHERE nombre = 'Dron Básico'), (SELECT id_buffo FROM buffos WHERE nombre = 'Óptica Kiroshi')),
 
--- Tier 2
-((SELECT id_npc FROM npc WHERE nombre = 'Arasaka RAT'), (SELECT id_buffo FROM buffos WHERE nombre = 'Enlace Inteligente')),
-((SELECT id_npc FROM npc WHERE nombre = 'Netrunner Hostil'), (SELECT id_buffo FROM buffos WHERE nombre = 'Cibermodem de Combate')),
-((SELECT id_npc FROM npc WHERE nombre = 'Punk'), (SELECT id_buffo FROM buffos WHERE nombre = 'Cibrobrazo')),
 
--- Tier 3
-((SELECT id_npc FROM npc WHERE nombre = 'Soldado de Asalto Militech'), (SELECT id_buffo FROM buffos WHERE nombre = 'Placas Subdérmicas')),
-((SELECT id_npc FROM npc WHERE nombre = 'Soldado de Asalto Militech'), (SELECT id_buffo FROM buffos WHERE nombre = 'Enlace Inteligente')),
 
-((SELECT id_npc FROM npc WHERE nombre = 'Arasaka Elite Pesada'), (SELECT id_buffo FROM buffos WHERE nombre = 'Sandevistan')),
-((SELECT id_npc FROM npc WHERE nombre = 'Arasaka Elite Pesada'), (SELECT id_buffo FROM buffos WHERE nombre = 'Placas Subdérmicas')),
 
-((SELECT id_npc FROM npc WHERE nombre = 'Jefe de Banda'), (SELECT id_buffo FROM buffos WHERE nombre = 'Sandevistan')),
-((SELECT id_npc FROM npc WHERE nombre = 'Jefe de Banda'), (SELECT id_buffo FROM buffos WHERE nombre = 'Cibrobrazo'));
--- 5. Creación de un Jugador de prueba (Estado Activo)
+
+
+/* ==============================================================================
+   Creación de un Jugador de prueba (Estado Activo)
+============================================================================== */
+
 -- Note que aquí sí se declaran los valores actuales (hp, body_sp) iguales a los máximos al inicio.
-INSERT INTO jugadores (nombre, max_hp, hp, max_body_sp, body_sp, max_head_sp, head_sp, max_luck, luck, max_move, move) VALUES 
-('V', 45, 45, 7, 7, 7, 7, 8, 8, 8, 8),
-('Jackie', 60, 60, 4, 4, 4, 4, 5, 5, 6, 6);
+INSERT INTO jugadores (nombre, max_hp, hp, max_body_sp, body_sp, max_head_sp, head_sp, max_luck, luck, max_move) VALUES 
+('V', 45, 45, 7, 7, 7, 7, 8, 8, 8),
+('Jackie', 60, 60, 4, 4, 4, 4, 5, 5, 6);
 
 -- 6. Equipar inventario a los jugadores (Con seguimiento de balas)
 -- V lleva un Subfusil (lleno) y Jackie una Escopeta (llena).
@@ -354,8 +355,6 @@ INSERT INTO catalogo_debuffos (nombre, descripcion, tipo, remedio_rapido, tratam
 ('Tumbado', 'Movimiento máximo reducido a 1. Requiere gastar una acción para levantarse.', 'Temporal', NULL, NULL),
 ('Inconsciente', 'Incapaz de actuar.', 'Temporal', NULL, NULL);
 
--- Eliminación de registros permanentes previos
-DELETE FROM catalogo_debuffos WHERE tipo = 'Permanente';
 
 -- Inserción de la lista oficial de estados permanentes y heridas críticas
 INSERT INTO catalogo_debuffos (nombre, descripcion, tipo, remedio_rapido, tratamiento) VALUES 
@@ -363,22 +362,21 @@ INSERT INTO catalogo_debuffos (nombre, descripcion, tipo, remedio_rapido, tratam
 
 -- Estados de Salud Base
 ('Gravemente Herido', '-2 a todas las acciones.', 'Permanente', 'N/D', 'Estabilizar VD 13'),
-('Mortalmente Herido', '-4 a todas las acciones. -6 a MOV (mínimo 1). Salvación contra muerte al inicio de cada turno. Sufre herida crítica si recibe daño. Penalización a salvación aumenta en 1.', 'Permanente', 'N/D', 'Recuperar a 1 PD tiene VD 15 y queda inconsciente por 1 minuto.'),
+('Mortalmente Herido', '-4 a todas las acciones. -6 a MOV (mínimo 1). Salvación contra muerte al inicio de cada turno. Sufre herida crítica si recibe daño. Penalización a salvación aumenta en 1.', 'Permanente', 'N/D', 'Recuperar a 1 PD tiene VD 17 y queda inconsciente por 1 minuto.'),
 
--- Lesiones Críticas
-('Brazo Desmembrado', 'El Brazo Desmembrado ha desaparecido. Dejas caer inmediatamente cualquier objeto en esa mano. La penalización base para Salvación contra Muerte aumenta en 1.', 'Permanente', 'N/D', 'Cirugía DV 17'),
-('Mano Desmembrada', 'La Mano Desmembrada ha desaparecido. Dejas caer inmediatamente cualquier objeto en esa mano. La penalización base para Salvación contra Muerte aumenta en 1.', 'Permanente', 'N/D', 'Cirugía DV 17'),
-('Pulmón Colapsado', '-2 a MOV (mínimo 1). La penalización base para Salvación contra Muerte aumenta en 1.', 'Permanente', 'Paramédico DV 15', 'Cirugía DV 15'),
-('Costillas Rotas', 'Al final de cada turno en el que te muevas más de 4 metros en pie, sufres nuevamente 5 puntos de Daño directo a tus HP.', 'Permanente', 'Paramédico DV 13', 'Paramédico DV 15 / Cirugía DV 13'),
-('Brazo Roto', 'El Brazo Roto no puede ser utilizado. Dejas caer inmediatamente cualquier objeto en esa mano.', 'Permanente', 'Paramédico DV 13', 'Paramédico DV 15 / Cirugía DV 13'),
-('Objeto Extraño', 'Al final de cada turno en el que te muevas más de 4 metros en pie, sufres nuevamente 5 puntos de Daño directo a tus HP.', 'Permanente', 'Primeros Auxilios/Paramédico DV 13', 'Remedio Rápido'),
-('Pierna Rota', '-4 a MOV (mínimo 1).', 'Permanente', 'Paramédico DV 13', 'Paramédico DV 15 / Cirugía DV 13'),
-('Lesión Espinal', 'En el próximo turno, no puedes realizar una acción, pero aún puedes realizar una Acción de Movimiento. La penalización base para Salvación contra Muerte aumenta en 1.', 'Permanente', 'Paramédico DV 15', 'Cirugía DV 15'),
-('Pierna Desmembrada', 'La Pierna ha desaparecido. -6 a MOV (mínimo 1). No puedes esquivar ataques. La penalización base para Salvación contra Muerte aumenta en 1.', 'Permanente', 'N/D', 'Cirugía DV 17'),
-('Ojo Perdido', 'El Ojo se ha ido. -4 a Ataques a Distancia y Percepción visual. La penalización base para Salvación contra Muerte aumenta en 1.', 'Permanente', 'N/D', 'Cirugía DV 17'),
-('Lesión Cerebral', '-2 a todas las acciones. La penalización base para Salvación contra Muerte aumenta en 1.', 'Permanente', 'N/D', 'Cirugía DV 17'),
-('Ojo Dañado', '-2 a Ataques a Distancia y Percepción visual.', 'Permanente', 'Paramédico DV 15', 'Cirugía DV 13'),
-('Conmoción', '-2 a todas las acciones.', 'Permanente', 'Primeros Auxilios/Paramédico DV 13', 'Solución Rápida'),
-('Mandíbula Rota', '-4 a todas las acciones que involucren el habla.', 'Permanente', 'Paramédico DV 13', 'Paramédico/Cirugía DV 13'),
-('Latigazo Cervical', 'La penalización base para Salvación contra Muerte aumenta en 1.', 'Permanente', 'Paramédico DV 13', 'Paramédico/Cirugía DV 13'),
-('Cráneo Agrietado', 'Disparos a tu cabeza multiplican el daño que atraviesa tu Protección por 6 en lugar de 4. La penalización base para Salvación contra Muerte aumenta en 1.', 'Permanente', 'Paramédico DV 15', 'Paramédico/Cirugía DV 15');
+('1- Cráneo Agrietado', 'Disparos a tu cabeza multiplican el daño que atraviesa SP por 4. Penalización salvación muerte +1.', 'Permanente', 'Primeros Auxilios VD 15', 'Paramédico VD 15'),
+('2- Pierna Desmembrada', 'Pierna desaparecida. -6 a MOV. No puedes esquivar. Penalización salvación muerte +1.', 'Permanente', 'N/D', 'Paramédico VD 21'),
+('3- Mano Desmembrada', 'La Mano ha desaparecido. Dejas caer objetos en esa mano. Penalización salvación muerte +1.', 'Permanente', 'N/D', 'Paramédico VD 21'),
+('4- Lesión Espinal', 'Siguiente turno: sin Acción (solo Acción de Movimiento). Penalización salvación muerte +1.', 'Permanente', 'Primeros Auxilios VD 15', 'Paramédico VD 17'),
+('5- Pierna Rota', '-4 a MOV (mínimo 1).', 'Permanente', 'Primeros Auxilios VD 13', 'Paramédico VD 13'),
+('6- Costillas Rotas', 'Si te mueves más de 4m en pie en tu turno, sufres 5 de daño directo al final.', 'Permanente', 'Primeros Auxilios VD 13', 'Paramédico VD 13'),
+('7- Objeto Extraño', 'Si te mueves más de 4m en pie en tu turno, sufres 5 de daño directo al final.', 'Permanente', 'Primeros Auxilios VD 13', 'Remedio Rápido'),
+('8- Conmoción', '-2 a todas las acciones.', 'Permanente', 'Primeros Auxilios VD 13', 'Solución Rápida'),
+('9- Latigazo Cervical', 'La penalización base para Salvación contra Muerte aumenta en 1.', 'Permanente', 'Primeros Auxilios VD 13', 'Paramédico VD 13'),
+('10- Mandíbula Rota', '-4 a todas las acciones que involucren el habla.', 'Permanente', 'Primeros Auxilios VD 13', 'Paramédico VD 13'),
+('11- Ojo Dañado', '-2 a Ataques a Distancia y Percepción visual.', 'Permanente', 'Primeros Auxilios VD 15', 'Paramédico VD 13'),
+('12- Brazo Roto', 'El Brazo Roto no puede ser utilizado. Dejas caer inmediatamente cualquier objeto.', 'Permanente', 'Primeros Auxilios VD 13', 'Paramédico VD 13'),
+('13- Pulmón Colapsado', '-2 a MOV (mínimo 1). La penalización base para Salvación contra Muerte aumenta en 1.', 'Permanente', 'Primeros Auxilios VD 15', 'Paramédico VD 15'),
+('14- Ojo Perdido', 'El Ojo se ha ido. -4 a Ataques a Distancia y Percepción visual. La penalización base para Salvación contra Muerte aumenta en 1.', 'Permanente', 'N/D', 'Paramédico VD 21'),
+('15- Lesión Cerebral', '-2 a todas las acciones. La penalización base para Salvación contra Muerte aumenta en 1.', 'Permanente', 'N/D', 'Paramédico VD 21'),
+('16- Brazo Desmembrado', 'El Brazo ha desaparecido. Dejas caer inmediatamente cualquier objeto en esa mano. La penalización base para Salvación contra Muerte aumenta en 1.', 'Permanente', 'N/D', 'Paramédico VD 21');

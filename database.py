@@ -85,7 +85,6 @@ def cargar_partida_db():
                     pj.body_sp = j['body_sp']
                     pj.head_sp = j['head_sp']
                     pj.luck = j['luck']
-                    pj.move = j['move']
                     
                     cursor.execute("SELECT id_debufo FROM jugadores_debuffos WHERE id_jugador = %s;", (j['id_jugador'],))
                     pj.debufos_permanentes_ids = [d['id_debufo'] for d in cursor.fetchall()]
@@ -116,9 +115,9 @@ def guardar_partida_db(pjs, npcs):
                     
                     cursor.execute("""
                         UPDATE jugadores 
-                        SET hp = %s, body_sp = %s, head_sp = %s, luck = %s, move = %s, death_penalty = %s
+                        SET hp = %s, body_sp = %s, head_sp = %s, luck = %s, death_penalty = %s
                         WHERE id_jugador = %s;
-                    """, (p.hp, p.body_sp, p.head_sp, p.luck, p.move, p.death_penalty, p.id_db))
+                    """, (p.hp, p.body_sp, p.head_sp, p.luck, p.death_penalty, p.id_db))
 
                     if hasattr(p, "armas"):
                         for nombre_arma, datos in p.armas.items():
