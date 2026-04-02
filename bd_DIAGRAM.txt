@@ -150,7 +150,7 @@ CREATE TABLE jugadores_debuffos (
    FASE : POBLADO DE DATOS ARMAS 
 ============================================================================== */
 /* ==============================================================================
-   INSERCIÓN DE DATOS: TABLAS DE DIFICULTAD (DVs) SEGÚN MANUAL CYBERPUNK RED
+   INSERCIÓN DE DATOS: TABLAS DE DIFICULTAD (DVs)
 ============================================================================== */
 INSERT INTO dv_tablas 
 (nombre_esquema, dist_0_6m, dist_7_12m, dist_13_25m, dist_26_50m, dist_51_100m, dist_101_200m, dist_201_400m, dist_401_800m) 
@@ -164,72 +164,96 @@ VALUES
 ('Arcos y Ballestas',        15, 13, 15, 17, 20, 22, NULL, NULL),
 ('Lanzagranadas',            16, 15, 15, 17, 20, 22,   25, NULL),
 ('Lanzamisiles',             17, 16, 15, 15, 20, 20,   25,   30),
-('Lanzamiento', 16, 15, 15, NULL, NULL, NULL, NULL, NULL),
+('Lanzamiento',              16, 15, 15, NULL, NULL, NULL, NULL, NULL),
 -- Tablas Especiales para Disparo Automático (Autofuego)
 ('Subfusil (Autofuego)',          20, 17, 20, 25, 30, NULL, NULL, NULL),
 ('Fusil de Asalto (Autofuego)',   22, 20, 17, 20, 25, NULL, NULL, NULL);
 
--- Inserción de Propiedades 
+/* ==============================================================================
+   INSERCIÓN DE DATOS: CUALIDADES DE LAS ARMAS
+============================================================================== */
 INSERT INTO propiedades_armas (nombre, descripcion) VALUES 
 ('Disparo Automático (3)', 'Permite multiplicar el daño base con un máximo de 3.'),
 ('Disparo Automático (4)', 'Permite multiplicar el daño base con un máximo de 4.'),
 ('Disparo Automático (5)', 'Permite multiplicar el daño base con un máximo de 5.'),
-('Cartucho de Escopeta', 'Área de x3 casillas vs DV13.'),
-('Explosivo', 'Daño "6d6". Al penetrar armadura, reduce 2 puntos de SP en lugar de 1.'),
-('Granada de Humo', 'Área(5x5 casillas) por 1 min. Bloquea línea de visión. Penalizador -4 a todas las acciones dentro de la nube.'),
-('Granada Aturdidora', 'Sin daño directo. Objetivo debe superar Tirada Resistir Tortura/Drogas VD15. Si falla: Estados "Ojo Dañado" y "Oído Dañado" por 1 min.'),
-('Efecto Incendiario', 'El objetivo arde (Fuego Mortal), al final de cada turno. Apagarse requiere 1 Acción Completa.'),
-('Misil', 'Daño "8d6". Al penetrar armadura, reduce 2 puntos de SP en lugar de 1.');
+('Cartucho de Escopeta', 'Área de 3x3 casillas vs DV 13.'),
+('Explosivo', 'Daño 6d6. Al penetrar armadura, reduce 2 puntos de SP en lugar de 1.'),
+('Granada de Humo', 'Área (5x5 casillas) por 1 min. Bloquea visión. Penalizador -4 a toda acción dentro de la nube.'),
+('Granada Aturdidora', 'Sin daño directo. Objetivo debe superar Resistir Tortura/Drogas DV 15 o sufre Ojo/Oído Dañado.'),
+('Efecto Incendiario', 'El objetivo arde (Fuego Mortal). Apagarse requiere 1 Acción Completa.'),
+('Misil', 'Daño 8d6. Al penetrar armadura, reduce 2 puntos de SP en lugar de 1.'),
+('Disparo Letal', 'Al realizar un Disparo Apuntado, el arma añade +1d6 adicional a su daño base para ese ataque.'),
+('Fuego de Supresión', 'Permite usar la acción de Fuego de Supresión para obligar a los enemigos a cubrirse.'),
+('Óptica Precisa', 'El arma otorga un bono de +1 a todas las tiradas de ataque en un Disparo Apuntado.');
 
 /* ==============================================================================
-   INSERCIÓN DE DATOS: PLANTILLAS DE ARMAS VINCULADAS A DVs
+   INSERCIÓN DE DATOS: PLANTILLAS DE ARMAS
 ============================================================================== */
-INSERT INTO plantillas_armas (nombre, max_balas, id_dv_estandar, id_dv_autofuego, dados_dano) VALUES 
--- Pistolas (DV ID 1)
-('Pistola mediana', 12, 1, NULL, 2),
-('Pistola pesada', 8, 1, NULL, 3),
-('Pistola muy pesada', 8, 1, NULL, 4),
+INSERT INTO plantillas_armas (nombre, max_balas, dados_dano, id_dv_estandar, id_dv_autofuego) VALUES 
+-- Pistolas
+('Pistola mediana',    12, 2, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Pistolas'), NULL),
+('Pistola pesada',      8, 3, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Pistolas'), NULL),
+('Pistola muy pesada',  6, 4, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Pistolas'), NULL),
 
--- Subfusiles (DV ID 2 para normal, DV ID 9 para autofuego)
-('Subfusil', 30, 2, 9, 2),
-('Subfusil pesado', 40, 2, 9, 3),
+-- Subfusiles
+('Subfusil',           30, 3, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Subfusiles'), (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Subfusil (Autofuego)')),
+('Subfusil pesado',    40, 3, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Subfusiles'), (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Subfusil (Autofuego)')),
 
--- Escopetas (DV ID 3)
-('Escopeta', 4, 3, NULL, 5),
+-- Escopetas
+('Escopeta',            4, 5, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Escopetas (bala)'), NULL),
 
--- Fusiles de asalto (DV ID 4 para normal, DV ID 10 para autofuego)
-('Fusil de asalto', 25, 4, 10, 5),
+-- Fusiles de Asalto
+('Fusil de asalto',    25, 5, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Fusiles de Asalto'), (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Fusil de Asalto (Autofuego)')),
 
--- Fusil de francotirador (DV ID 5)
-('Fusil de francotirador', 4, 5, NULL, 5),
+-- Precisión / Francotirador
+('Rifle de Precisión', 10, 5, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Fusiles de Francotirador'), NULL),
+('Fusil de francotirador', 4, 5, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Fusiles de Francotirador'), NULL),
 
--- Armas Pesadas Explosivas (DV ID 7 y 8)
-('Lanzagranadas', 2, 7, NULL, 6), 
-('Lanzamisiles', 1, 8, NULL, 8),
+-- Armas Pesadas Explosivas
+('Lanzagranadas',       2, 6, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Lanzagranadas'), NULL), 
+('Lanzamisiles',        1, 8, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Lanzamisiles'), NULL),
 
--- Armas Cuerpo a Cuerpo (No usan tabla DV de balística)
-('Arma cac (Media)', 0, NULL, NULL, 2),
-('Arma cac (Pesada)', 0, NULL, NULL, 3),
-('Arma cac (Muy pesada)', 0, NULL, NULL, 4),
+-- Armas Cuerpo a Cuerpo
+('Arma cac (Media)',       0, 2, NULL, NULL),
+('Arma cac (Pesada)',      0, 3, NULL, NULL),
+('Arma cac (Muy pesada)',  0, 4, NULL, NULL),
 
--- Granadas Arrojadizas (Usan la tabla DV ID 11, límite 25m)
-('Granada estándar', 1, 11, NULL, 6),
-('Granada de humo', 1, 11, NULL, 0),
-('Granada aturdidora', 1, 11, NULL, 0),
-('Granada incendiaria', 1, 11, NULL, 6);
+-- Granadas Arrojadizas
+('Granada estándar',    1, 6, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Lanzamiento'), NULL),
+('Granada de humo',     1, 0, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Lanzamiento'), NULL),
+('Granada aturdidora',  1, 0, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Lanzamiento'), NULL),
+('Granada incendiaria', 1, 6, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Lanzamiento'), NULL);
 
--- Vinculación en la Tabla Puente 
+/* ==============================================================================
+   INSERCIÓN DE DATOS: RELACIÓN ARMAS <-> PROPIEDADES
+============================================================================== */
 INSERT INTO armas_propiedades (id_plantilla, id_propiedad) VALUES 
+-- Pistolas
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola muy pesada'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Disparo Letal')),
+
+-- Subfusiles
 ((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Subfusil'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Disparo Automático (3)')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Subfusil'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Fuego de Supresión')),
 ((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Subfusil pesado'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Disparo Automático (3)')),
-((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Fusil de asalto'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Disparo Automático (4)')),
+
+-- Escopetas
 ((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Escopeta'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Cartucho de Escopeta')),
+
+-- Fusiles
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Fusil de asalto'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Disparo Automático (4)')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Fusil de asalto'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Fuego de Supresión')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Rifle de Precisión'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Disparo Letal')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Fusil de francotirador'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Disparo Letal')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Fusil de francotirador'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Óptica Precisa')),
+
+-- Pesadas / Granadas
 ((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Lanzagranadas'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Explosivo')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Lanzamisiles'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Misil')),
 ((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Granada estándar'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Explosivo')),
 ((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Granada de humo'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Granada de Humo')),
 ((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Granada aturdidora'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Granada Aturdidora')),
-((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Granada incendiaria'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Efecto Incendiario')),
-((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Lanzamisiles'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Misil'));
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Granada incendiaria'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Efecto Incendiario'));
+
 
 /* ==============================================================================
    POBLADO COMPLEMENTARIO: BUFFOS, BESTIARIO Y JUGADORES
@@ -324,25 +348,32 @@ INSERT INTO npc_armas (id_npc, id_plantilla) VALUES
 /* ==============================================================================
    Creación de un Jugador de prueba (Estado Activo)
 ============================================================================== */
-
--- Note que aquí sí se declaran los valores actuales (hp, body_sp) iguales a los máximos al inicio.
+/* ------------------------------------------------------------------------------
+   NUEVO JUGADOR: [Escribe aquí el nombre para no perderte]
+------------------------------------------------------------------------------ */
+-- 1. Crear las estadísticas base del personaje
 INSERT INTO jugadores (nombre, max_hp, hp, max_body_sp, body_sp, max_head_sp, head_sp, max_luck, luck, max_move) VALUES 
-('V', 45, 45, 7, 7, 7, 7, 8, 8, 8),
-('Jackie', 60, 60, 4, 4, 4, 4, 5, 5, 6);
+('Gunslinger', 45, 45, 4, 4, 4, 4, 4, 4, 6),
+('Tank', 60, 60, 4, 4, 4, 4, 6, 6, 6), -- Corregido: Luck max 6 para que coincida con actual
+('Samurai', 45, 45, 7, 7, 7, 7, 4, 4, 8) -- Corregido: SP cabeza de 47 a 7
+;
 
--- 6. Equipar inventario a los jugadores (Con seguimiento de balas)
--- V lleva un Subfusil (lleno) y Jackie una Escopeta (llena).
-INSERT INTO inventario_jugadores (id_jugador, id_plantilla, balas_actuales) VALUES 
+-- 2. Asignarle armas
+INSERT INTO inventario_jugadores (id_jugador, id_plantilla, balas_actuales) 
+VALUES 
 (
-    (SELECT id_jugador FROM jugadores WHERE nombre = 'V'), 
-    (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Subfusil'), 
-    (SELECT max_balas FROM plantillas_armas WHERE nombre = 'Subfusil')
+    (SELECT id_jugador FROM jugadores WHERE nombre = 'Gunslinger'), 
+    (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola muy pesada'), 
+    (SELECT max_balas FROM plantillas_armas WHERE nombre = 'Pistola muy pesada')
 ),
 (
-    (SELECT id_jugador FROM jugadores WHERE nombre = 'Jackie'), 
-    (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Escopeta'), 
-    (SELECT max_balas FROM plantillas_armas WHERE nombre = 'Escopeta')
+    (SELECT id_jugador FROM jugadores WHERE nombre = 'Gunslinger'), 
+    (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Rifle de Precisión'), 
+    (SELECT max_balas FROM plantillas_armas WHERE nombre = 'Rifle de Precisión')
 );
+/* ------------------------------------------------------------------------------
+   FIN NUEVO JUGADOR: 
+------------------------------------------------------------------------------ */
 
 
 -- Inserción de la lista oficial de estados temporales

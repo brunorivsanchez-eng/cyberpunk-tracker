@@ -2,7 +2,7 @@
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, 
                              QFrame, QLabel, QPushButton, 
                              QComboBox, QLineEdit, QProgressBar, 
-                             QSizePolicy)
+                             QSizePolicy, QCheckBox)
 from PyQt6.QtCore import Qt, pyqtSignal
 import controlador
 
@@ -10,7 +10,7 @@ class NoScrollComboBox(QComboBox):
     def wheelEvent(self, event):
         event.ignore()
 
-def construir_tooltip(titulo, descripcion, remedio=None, tratamiento=None, font_size=11, tabla_dv=None):
+def construir_tooltip(titulo, descripcion, remedio=None, tratamiento=None, font_size=11, tabla_dv=None, tabla_dv_auto=None):
     """Genera un recuadro HTML estandarizado para la información flotante."""
     # Contenedor principal
     html = f"<div style='background-color: #1A1A1A; color: #FFD700; padding: 8px; border: 1px solid #555555; font-family: Arial; font-size: {font_size}px;'>"
@@ -27,28 +27,40 @@ def construir_tooltip(titulo, descripcion, remedio=None, tratamiento=None, font_
     if tratamiento:
         html += f"<span style='color: #00FF00;'><b>Tratamiento:</b> {tratamiento}</span>"
         
-    # NUEVO DISEÑO VERTICAL: Tabla de Valores de Dificultad (VD)
+    # NUEVO DISEÑO: Tabla de VD Simple y Automático
     if tabla_dv and any(v is not None for v in tabla_dv):
-        # Convertimos nulos a "-"
-        v = [str(val) if val is not None else "-" for val in tabla_dv]
+        v_simple = [str(val) if val is not None else "-" for val in tabla_dv]
+        # Verificamos si existe la tabla secundaria de autofuego
+        v_auto = [str(val) if val is not None else "-" for val in tabla_dv_auto] if tabla_dv_auto and any(x is not None for x in tabla_dv_auto) else None
+        
         encabezados = ["0-6", "7-12", "13-25", "26-50", "51-100", "101-200", "201-400", "401-800"]
         
-        html += "<br><br><b style='color:#00FFFF; font-size: 11px; font-family: Orbitron, sans-serif;'>DIFICULTAD DE DISPARO:</b><br>"
-        # Estilo principal de la tabla (Borde exterior cian)
-        html += "<table style='width: 150px; text-align:center; border: 1px solid #00FFFF; border-collapse: collapse; margin-top:5px; font-size:11px;'>"
+        html += "<br><br><b style='color:#00FFFF; font-size: 11px; font-family: Orbitron, sans-serif;'>DIFICULTAD DE DISPARO (VD):</b><br>"
         
-        # Cabeceras de las dos columnas
+        # Ajustamos el ancho si hay 3 columnas
+        ancho_tabla = "220px" if v_auto else "150px"
+        html += f"<table style='width: {ancho_tabla}; text-align:center; border: 1px solid #00FFFF; border-collapse: collapse; margin-top:5px; font-size:11px;'>"
+        
         html += "<tr style='background-color: #002222; color: #00FFFF;'>"
-        html += "<th style='border: 1px solid #008888; padding: 4px;'>Distancia (m)</th>"
-        html += "<th style='border: 1px solid #008888; padding: 4px;'>VD</th>"
+        html += "<th style='border: 1px solid #008888; padding: 4px;'>Dist. (m)</th>"
+        html += "<th style='border: 1px solid #008888; padding: 4px;'>Simple</th>"
+        if v_auto:
+            html += "<th style='border: 1px solid #008888; padding: 4px; color: #FF9900;'>Auto</th>"
         html += "</tr>"
         
-        # Filas de datos emparejadas hacia abajo
-        for dist, valor in zip(encabezados, v):
-            color_texto = "#FF4444" if valor == "-" else "#FFFFFF"
+        for i, dist in enumerate(encabezados):
+            val_s = v_simple[i]
+            color_s = "#FF4444" if val_s == "-" else "#FFFFFF"
+            
             html += "<tr style='background-color: #111111;'>"
             html += f"<td style='border: 1px solid #008888; padding: 4px; color: #CCCCCC;'>{dist}</td>"
-            html += f"<td style='border: 1px solid #008888; padding: 4px; color: {color_texto}; font-weight: bold;'>{valor}</td>"
+            html += f"<td style='border: 1px solid #008888; padding: 4px; color: {color_s}; font-weight: bold;'>{val_s}</td>"
+            
+            if v_auto:
+                val_a = v_auto[i]
+                color_a = "#FF4444" if val_a == "-" else "#FF9900"
+                html += f"<td style='border: 1px solid #008888; padding: 4px; color: {color_a}; font-weight: bold;'>{val_a}</td>"
+            
             html += "</tr>"
         
         html += "</table>"
@@ -316,7 +328,8 @@ class TarjetaBase(QFrame):
                         n_arma, 
                         efecto_str, 
                         font_size=12, 
-                        tabla_dv=datos.get("dv_valores")
+                        tabla_dv=datos.get("dv_valores"),
+                        tabla_dv_auto=datos.get("dv_valores_auto")
                     )
                     lbl_n.setToolTip(texto_tooltip)
                     lbl_n.setCursor(Qt.CursorShape.WhatsThisCursor)
@@ -549,6 +562,11 @@ class TarjetaBase(QFrame):
                 mod_situacional = int(texto_mod) if texto_mod else 0
             except ValueError:
                 mod_situacional = 0 # Protección contra letras o símbolos
+        
+        # --- NUEVA LÓGICA: DISPARO APUNTADO ---
+        if hasattr(self, 'check_apuntado') and self.check_apuntado.isChecked():
+            mod_situacional -= 8  # Restamos 8 al total de la tirada
+        # --------------------------------------
 
         # Extraemos estadísticas de combate
         base_combate = getattr(self.personaje_obj, 'base_combate', 0)
@@ -687,6 +705,30 @@ class TarjetaNPC(TarjetaBase):
         fila_mod.addWidget(self.input_mod_ataque)
         fila_mod.addStretch(1)
         layout.addLayout(fila_mod)
+        
+        # --- NUEVO: CASILLA DE DISPARO APUNTADO ---
+        fila_apuntado = QHBoxLayout()
+        self.check_apuntado = QCheckBox("🎯 APUNTADO (-8)")
+        self.check_apuntado.setStyleSheet("""
+            QCheckBox {
+                color: #FF00FF; 
+                font-weight: bold; 
+                font-size: 10px; 
+                font-family: 'Orbitron';
+            }
+            QCheckBox::indicator {
+                width: 13px;
+                height: 13px;
+                border: 1px solid #FF00FF;
+                background-color: #1A1A1A;
+            }
+            QCheckBox::indicator:checked {
+                background-color: #FF00FF;
+            }
+        """)
+        fila_apuntado.addWidget(self.check_apuntado)
+        layout.addLayout(fila_apuntado)
+        # ------------------------------------------
         
 
         # 3. Construir la nueva fila de Iniciativa debajo

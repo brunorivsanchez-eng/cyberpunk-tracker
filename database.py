@@ -41,38 +41,46 @@ def cargar_partida_db():
                 filas_jugadores = cursor.fetchall()
 
                 for j in filas_jugadores:
-                    # NUEVA CONSULTA: Extrae datos del arma, sus propiedades y su tabla de distancias (VD)
+                    # NUEVA CONSULTA: Extrae datos del arma, sus propiedades y AMBAS tablas de distancias (Simple y Auto)
                     cursor.execute("""
                         SELECT pa.nombre, ij.balas_actuales, pa.max_balas, 
                                pa.dados_dano, pa.id_dv_estandar, pa.id_dv_autofuego,
                                COALESCE(string_agg(pr.descripcion, ' | '), '') as efecto,
-                               dv.dist_0_6m, dv.dist_7_12m, dv.dist_13_25m, dv.dist_26_50m, 
-                               dv.dist_51_100m, dv.dist_101_200m, dv.dist_201_400m, dv.dist_401_800m
+                               dvs.dist_0_6m AS s_0_6, dvs.dist_7_12m AS s_7_12, dvs.dist_13_25m AS s_13_25, dvs.dist_26_50m AS s_26_50, 
+                               dvs.dist_51_100m AS s_51_100, dvs.dist_101_200m AS s_101_200, dvs.dist_201_400m AS s_201_400, dvs.dist_401_800m AS s_401_800,
+                               dva.dist_0_6m AS a_0_6, dva.dist_7_12m AS a_7_12, dva.dist_13_25m AS a_13_25, dva.dist_26_50m AS a_26_50, 
+                               dva.dist_51_100m AS a_51_100, dva.dist_101_200m AS a_101_200, dva.dist_201_400m AS a_201_400, dva.dist_401_800m AS a_401_800
                         FROM inventario_jugadores ij
                         JOIN plantillas_armas pa ON ij.id_plantilla = pa.id_plantilla
                         LEFT JOIN armas_propiedades ap ON pa.id_plantilla = ap.id_plantilla
                         LEFT JOIN propiedades_armas pr ON ap.id_propiedad = pr.id_propiedad
-                        LEFT JOIN dv_tablas dv ON pa.id_dv_estandar = dv.id_dv_tabla
+                        LEFT JOIN dv_tablas dvs ON pa.id_dv_estandar = dvs.id_dv_tabla
+                        LEFT JOIN dv_tablas dva ON pa.id_dv_autofuego = dva.id_dv_tabla
                         WHERE ij.id_jugador = %s
                         GROUP BY pa.nombre, ij.balas_actuales, pa.max_balas, pa.dados_dano, pa.id_dv_estandar, pa.id_dv_autofuego,
-                                 dv.dist_0_6m, dv.dist_7_12m, dv.dist_13_25m, dv.dist_26_50m, dv.dist_51_100m, dv.dist_101_200m, dv.dist_201_400m, dv.dist_401_800m;
+                                 dvs.dist_0_6m, dvs.dist_7_12m, dvs.dist_13_25m, dvs.dist_26_50m, dvs.dist_51_100m, dvs.dist_101_200m, dvs.dist_201_400m, dvs.dist_401_800m,
+                                 dva.dist_0_6m, dva.dist_7_12m, dva.dist_13_25m, dva.dist_26_50m, dva.dist_51_100m, dva.dist_101_200m, dva.dist_201_400m, dva.dist_401_800m;
                     """, (j['id_jugador'],))
                     
-                    dicc_armas = {
-                        arma['nombre']: {
+                    dicc_armas = {}
+                    for arma in cursor.fetchall():
+                        dv_simple = [arma['s_0_6'], arma['s_7_12'], arma['s_13_25'], arma['s_26_50'], arma['s_51_100'], arma['s_101_200'], arma['s_201_400'], arma['s_401_800']]
+                        dv_auto = [arma['a_0_6'], arma['a_7_12'], arma['a_13_25'], arma['a_26_50'], arma['a_51_100'], arma['a_101_200'], arma['a_201_400'], arma['a_401_800']]
+                        
+                        # Si el arma no tiene tabla de autofuego, SQL devuelve puros nulos. Lo limpiamos:
+                        if all(v is None for v in dv_auto):
+                            dv_auto = None
+                            
+                        dicc_armas[arma['nombre']] = {
                             "actual": arma['balas_actuales'],
                             "max": arma['max_balas'],
                             "dados_dano": arma['dados_dano'],
                             "dv_estandar": arma['id_dv_estandar'],
                             "dv_autofuego": arma['id_dv_autofuego'],
                             "efecto": arma['efecto'] if arma['efecto'] else "",
-                            "dv_valores": [
-                                arma['dist_0_6m'], arma['dist_7_12m'], arma['dist_13_25m'], 
-                                arma['dist_26_50m'], arma['dist_51_100m'], arma['dist_101_200m'], 
-                                arma['dist_201_400m'], arma['dist_401_800m']
-                            ]
-                        } for arma in cursor.fetchall()
-                    }
+                            "dv_valores": dv_simple,
+                            "dv_valores_auto": dv_auto
+                        }
 
                     pj = Personaje(
                         nombre=j['nombre'], max_hp=j['max_hp'], max_body_sp=j['max_body_sp'],
@@ -178,7 +186,6 @@ def obtener_bestiario_completo():
                 """)
                 
                 bestiario = []
-                # Como el pool usa dict_row, fila ya es un diccionario garantizado
                 for fila in cur.fetchall():
                     bestiario.append({
                         "id": fila['id_npc'],
@@ -210,37 +217,44 @@ def instanciar_npc_dinamico(id_npc):
                 n = cursor.fetchone()
                 if not n: return None
 
-                # NUEVA CONSULTA NPCs: Extrae datos del arma, efecto y tabla de distancias (VD)
+                # NUEVA CONSULTA NPCs: Extrae datos del arma, efecto y AMBAS tablas de distancias (Simple y Auto)
                 cursor.execute("""
                     SELECT pa.nombre, pa.max_balas, pa.dados_dano, pa.id_dv_estandar, pa.id_dv_autofuego,
                            COALESCE(string_agg(pr.descripcion, ' | '), '') as efecto,
-                           dv.dist_0_6m, dv.dist_7_12m, dv.dist_13_25m, dv.dist_26_50m, 
-                           dv.dist_51_100m, dv.dist_101_200m, dv.dist_201_400m, dv.dist_401_800m
+                           dvs.dist_0_6m AS s_0_6, dvs.dist_7_12m AS s_7_12, dvs.dist_13_25m AS s_13_25, dvs.dist_26_50m AS s_26_50, 
+                           dvs.dist_51_100m AS s_51_100, dvs.dist_101_200m AS s_101_200, dvs.dist_201_400m AS s_201_400, dvs.dist_401_800m AS s_401_800,
+                           dva.dist_0_6m AS a_0_6, dva.dist_7_12m AS a_7_12, dva.dist_13_25m AS a_13_25, dva.dist_26_50m AS a_26_50, 
+                           dva.dist_51_100m AS a_51_100, dva.dist_101_200m AS a_101_200, dva.dist_201_400m AS a_201_400, dva.dist_401_800m AS a_401_800
                     FROM npc_armas na
                     JOIN plantillas_armas pa ON na.id_plantilla = pa.id_plantilla
                     LEFT JOIN armas_propiedades ap ON pa.id_plantilla = ap.id_plantilla
                     LEFT JOIN propiedades_armas pr ON ap.id_propiedad = pr.id_propiedad
-                    LEFT JOIN dv_tablas dv ON pa.id_dv_estandar = dv.id_dv_tabla
+                    LEFT JOIN dv_tablas dvs ON pa.id_dv_estandar = dvs.id_dv_tabla
+                    LEFT JOIN dv_tablas dva ON pa.id_dv_autofuego = dva.id_dv_tabla
                     WHERE na.id_npc = %s 
                     GROUP BY pa.nombre, pa.max_balas, pa.dados_dano, pa.id_dv_estandar, pa.id_dv_autofuego,
-                             dv.dist_0_6m, dv.dist_7_12m, dv.dist_13_25m, dv.dist_26_50m, dv.dist_51_100m, dv.dist_101_200m, dv.dist_201_400m, dv.dist_401_800m;
+                             dvs.dist_0_6m, dvs.dist_7_12m, dvs.dist_13_25m, dvs.dist_26_50m, dvs.dist_51_100m, dvs.dist_101_200m, dvs.dist_201_400m, dvs.dist_401_800m,
+                             dva.dist_0_6m, dva.dist_7_12m, dva.dist_13_25m, dva.dist_26_50m, dva.dist_51_100m, dva.dist_101_200m, dva.dist_201_400m, dva.dist_401_800m;
                 """, (n['id_npc'],))
                 
-                dicc_armas = {
-                    arma['nombre']: {
+                dicc_armas = {}
+                for arma in cursor.fetchall():
+                    dv_simple = [arma['s_0_6'], arma['s_7_12'], arma['s_13_25'], arma['s_26_50'], arma['s_51_100'], arma['s_101_200'], arma['s_201_400'], arma['s_401_800']]
+                    dv_auto = [arma['a_0_6'], arma['a_7_12'], arma['a_13_25'], arma['a_26_50'], arma['a_51_100'], arma['a_101_200'], arma['a_201_400'], arma['a_401_800']]
+                    
+                    if all(v is None for v in dv_auto):
+                        dv_auto = None
+                        
+                    dicc_armas[arma['nombre']] = {
                         "actual": arma['max_balas'], 
                         "max": arma['max_balas'],
                         "dados_dano": arma['dados_dano'],
                         "dv_estandar": arma['id_dv_estandar'],
                         "dv_autofuego": arma['id_dv_autofuego'],
                         "efecto": arma['efecto'] if arma['efecto'] else "",
-                        "dv_valores": [
-                            arma['dist_0_6m'], arma['dist_7_12m'], arma['dist_13_25m'], 
-                            arma['dist_26_50m'], arma['dist_51_100m'], arma['dist_101_200m'], 
-                            arma['dist_201_400m'], arma['dist_401_800m']
-                        ]
-                    } for arma in cursor.fetchall()
-                }
+                        "dv_valores": dv_simple,
+                        "dv_valores_auto": dv_auto
+                    }
 
                 cursor.execute("""
                     SELECT b.nombre, b.descripcion FROM npc_buffos nb

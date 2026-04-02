@@ -1,0 +1,46 @@
+/* ------------------------------------------------------------------------------
+   NUEVO JUGADOR: [Escribe aquí el nombre para no perderte]
+------------------------------------------------------------------------------ */
+-- 1. Crear las estadísticas base del personaje
+INSERT INTO jugadores (nombre, max_hp, hp, max_body_sp, body_sp, max_head_sp, head_sp, max_luck, luck, max_move) VALUES 
+('Gunslinger', 45, 45, 4, 4, 4, 4, 4, 4, 6),
+('Tank', 60, 60, 4, 4, 4, 4, 6, 6, 6), -- Corregido: Luck max 6 para que coincida con actual
+('Samurai', 45, 45, 7, 7, 7, 7, 4, 4, 8) -- Corregido: SP cabeza de 47 a 7
+;
+
+-- 2. Asignarle armas
+INSERT INTO inventario_jugadores (id_jugador, id_plantilla, balas_actuales) 
+VALUES 
+(
+    (SELECT id_jugador FROM jugadores WHERE nombre = 'Gunslinger'), 
+    (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola muy pesada'), 
+    (SELECT max_balas FROM plantillas_armas WHERE nombre = 'Pistola muy pesada')
+),
+(
+    (SELECT id_jugador FROM jugadores WHERE nombre = 'Gunslinger'), 
+    (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Rifle de Precisión'), 
+    (SELECT max_balas FROM plantillas_armas WHERE nombre = 'Rifle de Precisión')
+);
+
+
+/* ------------------------------------------------------------------------------
+   NUEVO NPC: [Escribe aquí el nombre para no perderte]
+------------------------------------------------------------------------------ */
+-- 1. Crear el enemigo (tier: 1 a 4)
+INSERT INTO npc (nombre, tier, faccion, max_hp, max_body_sp, max_head_sp, max_move, base_combate, base_iniciativa) 
+VALUES 
+('NOMBRE_DEL_NPC', 1, 'NOMBRE_FACCION', 0, 0, 0, 0, 0, 0);
+
+-- 2. Asignarle armas (Copia y pega este bloque por cada arma que tenga)
+INSERT INTO npc_armas (id_npc, id_plantilla) VALUES 
+(
+    (SELECT id_npc FROM npc WHERE nombre = 'NOMBRE_DEL_NPC'), 
+    (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'NOMBRE_DEL_ARMA')
+);
+
+-- 3. Asignarle ciberequipo / mejoras (Opcional, bórralo si no tiene)
+INSERT INTO npc_buffos (id_npc, id_buffo) VALUES 
+(
+    (SELECT id_npc FROM npc WHERE nombre = 'NOMBRE_DEL_NPC'), 
+    (SELECT id_buffo FROM buffos WHERE nombre = 'NOMBRE_DE_LA_MEJORA')
+);
