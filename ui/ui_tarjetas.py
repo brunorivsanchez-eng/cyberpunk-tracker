@@ -12,14 +12,12 @@ class NoScrollComboBox(QComboBox):
 
 def construir_tooltip(titulo, descripcion, remedio=None, tratamiento=None, font_size=11, tabla_dv=None, tabla_dv_auto=None):
     """Genera un recuadro HTML estandarizado para la información flotante."""
-    # Contenedor principal
     html = f"<div style='background-color: #1A1A1A; color: #FFD700; padding: 8px; border: 1px solid #555555; font-family: Arial; font-size: {font_size}px;'>"
     html += f"<b style='font-size: 13px;'>{titulo}</b><br>"
     
     if descripcion:
         html += f"<span style='color: #FFFFFF;'>{descripcion}</span>"
     
-    # Textos médicos (para estados)
     if remedio or tratamiento:
         html += "<br><br>"
     if remedio:
@@ -27,17 +25,14 @@ def construir_tooltip(titulo, descripcion, remedio=None, tratamiento=None, font_
     if tratamiento:
         html += f"<span style='color: #00FF00;'><b>Tratamiento:</b> {tratamiento}</span>"
         
-    # NUEVO DISEÑO: Tabla de VD Simple y Automático
     if tabla_dv and any(v is not None for v in tabla_dv):
         v_simple = [str(val) if val is not None else "-" for val in tabla_dv]
-        # Verificamos si existe la tabla secundaria de autofuego
         v_auto = [str(val) if val is not None else "-" for val in tabla_dv_auto] if tabla_dv_auto and any(x is not None for x in tabla_dv_auto) else None
         
         encabezados = ["0-6", "7-12", "13-25", "26-50", "51-100", "101-200", "201-400", "401-800"]
         
         html += "<br><br><b style='color:#00FFFF; font-size: 11px; font-family: Orbitron, sans-serif;'>DIFICULTAD DE DISPARO (VD):</b><br>"
         
-        # Ajustamos el ancho si hay 3 columnas
         ancho_tabla = "220px" if v_auto else "150px"
         html += f"<table style='width: {ancho_tabla}; text-align:center; border: 1px solid #00FFFF; border-collapse: collapse; margin-top:5px; font-size:11px;'>"
         
@@ -88,8 +83,8 @@ class TarjetaBase(QFrame):
         self._aplicar_estilos_base()
         
         self.layout_principal = QVBoxLayout(self)
-        self.layout_principal.setContentsMargins(8, 8, 8, 8)
-        self.layout_principal.setSpacing(5)
+        self.layout_principal.setContentsMargins(4, 4, 4, 4)
+        self.layout_principal.setSpacing(1)
         
         self._construir_cabecera()
         self._construir_fila_hp()
@@ -152,16 +147,57 @@ class TarjetaBase(QFrame):
         fila_hp.addWidget(barra_hp)
         fila_hp.addWidget(self.input_dano)
 
-        ataques = [
-            ("Cuerpo", False, False, False), ("Cabeza", True, False, False),
-            ("M. Cuerpo", False, True, False), ("M. Cabeza", True, True, False),
-            ("⚡ Directo", False, False, True)
-        ]
+        # --- NUEVO PANEL DE DAÑO SÚPER HORIZONTAL ---
+        estilo_check = "QCheckBox { font-size: 10px; color: #CCCCCC; padding: 0px; margin: 0px; }"
+        
+        panel_dano = QHBoxLayout()
+        panel_dano.setSpacing(8)
+        panel_dano.setContentsMargins(0, 0, 0, 0)
+        
+        # Col 1: Penetración
+        col_1 = QVBoxLayout()
+        col_1.setSpacing(0)
+        self.chk_mitad_sp = QCheckBox("1/2 SP")
+        self.chk_ignora_sp = QCheckBox("Ignora SP")
+        self.chk_mitad_sp.setStyleSheet(estilo_check); self.chk_ignora_sp.setStyleSheet(estilo_check)
+        col_1.addWidget(self.chk_mitad_sp); col_1.addWidget(self.chk_ignora_sp)
+        
+        # Col 2: Zona
+        col_2 = QVBoxLayout()
+        col_2.setSpacing(0)
+        self.chk_cabeza = QCheckBox("Cabeza (x2)")
+        self.chk_craneo = QCheckBox("Cráneo (x4)")
+        self.chk_cabeza.setStyleSheet(estilo_check); self.chk_craneo.setStyleSheet(estilo_check)
+        col_2.addWidget(self.chk_cabeza); col_2.addWidget(self.chk_craneo)
+        
+        # Col 3: Abrasión
+        col_3 = QVBoxLayout()
+        col_3.setSpacing(0)
+        self.chk_sin_abr = QCheckBox("No Rompe")
+        self.chk_explosivo = QCheckBox("Rompe 2")
+        self.chk_sin_abr.setStyleSheet(estilo_check); self.chk_explosivo.setStyleSheet(estilo_check)
+        col_3.addWidget(self.chk_sin_abr); col_3.addWidget(self.chk_explosivo)
 
-        for texto, cabeza, melee, directo in ataques:
-            btn = QPushButton(texto)
-            btn.clicked.connect(lambda checked, c=cabeza, m=melee, d=directo: self._ui_procesar_ataque(c, m, d))
-            fila_hp.addWidget(btn)
+        # Lógica de exclusión
+        self.chk_mitad_sp.toggled.connect(lambda checked: self.chk_ignora_sp.setChecked(False) if checked else None)
+        self.chk_ignora_sp.toggled.connect(lambda checked: self.chk_mitad_sp.setChecked(False) if checked else None)
+        self.chk_cabeza.toggled.connect(lambda checked: self.chk_craneo.setChecked(False) if checked else None)
+        self.chk_craneo.toggled.connect(lambda checked: self.chk_cabeza.setChecked(False) if checked else None)
+        self.chk_sin_abr.toggled.connect(lambda checked: self.chk_explosivo.setChecked(False) if checked else None)
+        self.chk_explosivo.toggled.connect(lambda checked: self.chk_sin_abr.setChecked(False) if checked else None)
+
+        btn_aplicar = QPushButton("💥 APLICAR")
+        btn_aplicar.setFixedWidth(75)
+        btn_aplicar.setStyleSheet("background-color: #8B0000; color: white; font-weight: bold; font-size: 11px;")
+        btn_aplicar.clicked.connect(self._ui_procesar_impacto)
+
+        panel_dano.addLayout(col_1)
+        panel_dano.addLayout(col_2)
+        panel_dano.addLayout(col_3)
+        panel_dano.addWidget(btn_aplicar)
+        
+        fila_hp.addLayout(panel_dano)
+        # ---------------------------------------
 
         self._agregar_botones_hp(fila_hp) 
         fila_hp.addStretch(1)
@@ -175,8 +211,8 @@ class TarjetaBase(QFrame):
         col_izq = QWidget()
         l_izq = QVBoxLayout(col_izq)
         l_izq.setContentsMargins(0, 0, 0, 0)
+        l_izq.setSpacing(1)
         
-        # Generar las filas de barras (SP, MOVE, LUCK)
         for nom_ui, attr, attr_max in self._obtener_stats_col_izq():
             fila = QHBoxLayout()
             lbl = QLabel(nom_ui)
@@ -214,6 +250,7 @@ class TarjetaBase(QFrame):
         col_der = QWidget()
         l_der = QVBoxLayout(col_der)
         l_der.setContentsMargins(0, 0, 0, 0)
+        l_der.setSpacing(1)
         self._agregar_elementos_col_der(l_der) 
         l_der.addStretch(1)
 
@@ -230,10 +267,9 @@ class TarjetaBase(QFrame):
         self.layout_principal.addLayout(layout_stats)
         
     def _construir_fila_dr(self, layout):
-        """Crea la fila para la reducción de daño endurecido."""
         fila = QHBoxLayout()
-        lbl = QLabel("🛡️ RED. DAÑO") # Texto simplificado
-        lbl.setFixedWidth(85) # <--- ANCHO UNIFICADO
+        lbl = QLabel("🛡️ RED. DAÑO") 
+        lbl.setFixedWidth(85) 
         lbl.setObjectName("LblStatTit") 
         
         valor_actual = getattr(self.personaje_obj, "reduccion_danio", 0)
@@ -257,13 +293,11 @@ class TarjetaBase(QFrame):
         layout.addLayout(fila)
 
     def _construir_fila_move(self, layout):
-        """Crea una fila estática para mostrar la capacidad de movimiento total."""
         fila = QHBoxLayout()
         lbl = QLabel("👟 MOVE")
-        lbl.setFixedWidth(85) # <--- ANCHO UNIFICADO
+        lbl.setFixedWidth(85) 
         lbl.setObjectName("LblStatTit") 
         
-        # Leemos solo el máximo de movimiento
         valor_move = getattr(self.personaje_obj, "max_move", 0)
         lbl_val = QLabel(f"{valor_move} cas.")
         lbl_val.setStyleSheet("color: #00FFFF; font-weight: bold; font-family: 'Orbitron', sans-serif;")
@@ -274,15 +308,14 @@ class TarjetaBase(QFrame):
         layout.addLayout(fila)
 
     def _agregar_elementos_col_der(self, layout): 
-        """Añade los elementos comunes de la columna derecha."""
-        self._construir_fila_move(layout)  # 1. Indicador estático de Movimiento
-        self._construir_fila_dr(layout)    # 2. Reducción de Daño
-        self._construir_fila_fuego(layout) # 3. Mecánicas de Fuego
+        self._construir_fila_move(layout) 
+        self._construir_fila_dr(layout)   
+        self._construir_fila_fuego(layout) 
 
     def _construir_fila_fuego(self, layout):
         fila = QHBoxLayout()
-        lbl_fuego = QLabel("🔥 FIRE") # Texto simplificado
-        lbl_fuego.setFixedWidth(85) # <--- ANCHO UNIFICADO
+        lbl_fuego = QLabel("🔥 FIRE") 
+        lbl_fuego.setFixedWidth(85) 
         lbl_fuego.setObjectName("LblFuegoTit") 
 
         b5 = QPushButton("🔥")
@@ -305,6 +338,7 @@ class TarjetaBase(QFrame):
         w = QWidget()
         l = QVBoxLayout(w)
         l.setContentsMargins(15, 0, 0, 0)
+        l.setSpacing(1)
         lbl_tit = QLabel("MUNICIÓN")
         lbl_tit.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lbl_tit.setObjectName("TituloColumnaArmas") 
@@ -319,21 +353,15 @@ class TarjetaBase(QFrame):
                 lbl_n.setWordWrap(True)
                 lbl_n.setObjectName("LblNombreArma") 
 
-                # --- RESTAURACIÓN DE TOOLTIP DE ARMAS ---
-                # Mostrar el tooltip si el arma tiene un efecto especial o si tiene tabla de VD (armas a distancia)
                 if ("efecto" in datos and datos["efecto"]) or ("dv_valores" in datos and any(datos["dv_valores"])):
                     efecto_str = f"Efecto: {datos['efecto']}" if datos.get("efecto") else ""
-                    
                     texto_tooltip = construir_tooltip(
-                        n_arma, 
-                        efecto_str, 
-                        font_size=12, 
+                        n_arma, efecto_str, font_size=12, 
                         tabla_dv=datos.get("dv_valores"),
                         tabla_dv_auto=datos.get("dv_valores_auto")
                     )
                     lbl_n.setToolTip(texto_tooltip)
                     lbl_n.setCursor(Qt.CursorShape.WhatsThisCursor)
-                # ----------------------------------------
 
                 fila.addWidget(lbl_n)
                 
@@ -363,14 +391,12 @@ class TarjetaBase(QFrame):
                     fila.addWidget(b_1)
                     fila.addWidget(b_max)
                 else:
-                    # --- NUEVO DISEÑO PARA ARMAS MELEE ---
                     fila.addStretch(1)
                     lbl_melee = QLabel("Cuerpo a Cuerpo")
                     lbl_melee.setObjectName("LblTextoGris") 
                     
                     b_atacar = QPushButton("⚔️ ATACAR")
                     b_atacar.setObjectName("BtnAjuste")
-                    # Reutilizamos la función de disparo, pero enviamos 1 (que luego ignoraremos)
                     b_atacar.clicked.connect(lambda checked, n=n_arma: self._ui_ejecutar_disparo(n, 1))
                     
                     fila.addWidget(lbl_melee)
@@ -393,17 +419,22 @@ class TarjetaBase(QFrame):
         if not hasattr(self.personaje_obj, "debufos_permanentes_ids"):
             self.personaje_obj.debufos_permanentes_ids = []
 
-        # Sub-columna Temporales
+        # --- COLUMNA TEMPORALES COMPRIMIDA ---
         c_temp, l_temp = QWidget(), QVBoxLayout()
         c_temp.setLayout(l_temp)
+        l_temp.setContentsMargins(0, 0, 0, 0)  # <-- Cero márgenes
+        l_temp.setSpacing(1)                   # <-- Mínimo espacio entre elementos
+
         h_temp = QHBoxLayout()
+        h_temp.setContentsMargins(0, 0, 0, 0)  # <-- Cero márgenes en el título
         lbl_tit_t = QLabel("⚠️ TEMPORALES")
         lbl_tit_t.setObjectName("LblTitTemp") 
         h_temp.addWidget(lbl_tit_t)
         
-        b_add_t = QPushButton("+"); b_add_t.setFixedSize(20,20); b_add_t.setObjectName("BtnAddRemove") 
+        # Botones reducidos a 18x18
+        b_add_t = QPushButton("+"); b_add_t.setFixedSize(18,18); b_add_t.setObjectName("BtnAddRemove") 
         b_add_t.clicked.connect(lambda checked: self._agregar_combo_debufo(l_temp, self.cat_temporales, self.widgets_referencia["debufos_temp"], False))
-        b_rem_t = QPushButton("-"); b_rem_t.setFixedSize(20,20); b_rem_t.setObjectName("BtnAddRemove") 
+        b_rem_t = QPushButton("-"); b_rem_t.setFixedSize(18,18); b_rem_t.setObjectName("BtnAddRemove") 
         b_rem_t.clicked.connect(lambda checked: self._remover_combo(l_temp, self.widgets_referencia["debufos_temp"], False))
         h_temp.addWidget(b_add_t); h_temp.addWidget(b_rem_t); h_temp.addStretch(1)
         l_temp.addLayout(h_temp)
@@ -412,17 +443,22 @@ class TarjetaBase(QFrame):
         l_temp.addStretch(1) 
         self._agregar_combo_debufo(l_temp, self.cat_temporales, self.widgets_referencia["debufos_temp"], False)
 
-        # Sub-columna Permanentes
+        # --- COLUMNA CRÍTICAS COMPRIMIDA ---
         c_perm, l_perm = QWidget(), QVBoxLayout()
         c_perm.setLayout(l_perm)
+        l_perm.setContentsMargins(0, 0, 0, 0)  # <-- Cero márgenes
+        l_perm.setSpacing(1)                   # <-- Mínimo espacio entre elementos
+
         h_perm = QHBoxLayout()
+        h_perm.setContentsMargins(0, 0, 0, 0)  # <-- Cero márgenes en el título
         lbl_tit_p = QLabel("🏥 CRÍTICAS")
         lbl_tit_p.setObjectName("LblTitPerm") 
         h_perm.addWidget(lbl_tit_p)
         
-        b_add_p = QPushButton("+"); b_add_p.setFixedSize(20,20); b_add_p.setObjectName("BtnAddRemove") 
+        # Botones reducidos a 18x18
+        b_add_p = QPushButton("+"); b_add_p.setFixedSize(18,18); b_add_p.setObjectName("BtnAddRemove") 
         b_add_p.clicked.connect(lambda checked: self._agregar_combo_debufo(l_perm, self.cat_permanentes, self.widgets_referencia["debufos_perm"], True))
-        b_rem_p = QPushButton("-"); b_rem_p.setFixedSize(20,20); b_rem_p.setObjectName("BtnAddRemove") 
+        b_rem_p = QPushButton("-"); b_rem_p.setFixedSize(18,18); b_rem_p.setObjectName("BtnAddRemove") 
         b_rem_p.clicked.connect(lambda checked: self._remover_combo(l_perm, self.widgets_referencia["debufos_perm"], True))
         h_perm.addWidget(b_add_p); h_perm.addWidget(b_rem_p); h_perm.addStretch(1)
         l_perm.addLayout(h_perm)
@@ -444,14 +480,13 @@ class TarjetaBase(QFrame):
     def _agregar_combo_debufo(self, layout_destino, catalogo, referencias, es_perm):
         combo = NoScrollComboBox()
         combo.setFixedWidth(160)
+        combo.setFixedHeight(20) # <-- ALTURA FORZADA A 20px PARA HACERLO MÁS DELGADO
         for idx, item in enumerate(catalogo):
             combo.addItem(item["nombre"], userData=item.get("id_debufo"))
             
-            # --- RESTAURACIÓN DE TOOLTIP DE ESTADOS ---
             if item.get("tipo") == "Permanente" and item["nombre"] != "---":
                 tooltip = construir_tooltip(
-                    item['nombre'], 
-                    item['descripcion'], 
+                    item['nombre'], item['descripcion'], 
                     remedio=item.get('remedio_rapido', 'N/D'), 
                     tratamiento=item.get('tratamiento', 'N/D')
                 )
@@ -459,7 +494,6 @@ class TarjetaBase(QFrame):
                 tooltip = construir_tooltip(item['nombre'], item.get('descripcion', ''))
                 
             combo.setItemData(idx, tooltip, Qt.ItemDataRole.ToolTipRole)
-            # ------------------------------------------
 
         layout_destino.insertWidget(layout_destino.count() - 1, combo)
         referencias.append(combo)
@@ -486,8 +520,6 @@ class TarjetaBase(QFrame):
             for c in self.widgets_referencia["debufos_perm"]:
                 id_deb = c.currentData(Qt.ItemDataRole.UserRole)
                 if id_deb: self.personaje_obj.debufos_permanentes_ids.append(id_deb)
-
-    
     # ------------------------------------------------------------------
     # CONTROLADORES DE EVENTOS
     # ------------------------------------------------------------------
@@ -507,12 +539,38 @@ class TarjetaBase(QFrame):
         if "hp" in w: w["hp"].setStyleSheet(f"QProgressBar::chunk {{ background-color: {color_barra}; border-radius: 5px; }}")
         if "nombre" in w: w["nombre"].setStyleSheet(f"color: {color_id}; font-family: 'Orbitron', sans-serif; font-size: 14px; font-weight: bold; border: none;")
 
-    def _ui_procesar_ataque(self, c, m, d):
+    # --- NUEVA FUNCIÓN EXTRACTORA DE DATOS ---
+    def _ui_procesar_impacto(self):
         txt = self.input_dano.text()
-        if txt.isdigit():
-            controlador.procesar_ataque(self.personaje_obj, int(txt), c, m, d)
-            self.sincronizar_interfaz()
-            self.input_dano.clear()
+        if not txt.isdigit():
+            return
+            
+        daño_base = int(txt)
+        
+        mitad_sp = self.chk_mitad_sp.isChecked()
+        ignora_sp = self.chk_ignora_sp.isChecked()
+        
+        cabeza = self.chk_cabeza.isChecked()
+        craneo = self.chk_craneo.isChecked()
+        
+        sin_abrasion = self.chk_sin_abr.isChecked()
+        explosivo = self.chk_explosivo.isChecked()
+
+        controlador.procesar_impacto_unificado(
+            self.personaje_obj, 
+            daño_base, 
+            mitad_sp, ignora_sp, 
+            cabeza, craneo, 
+            sin_abrasion, explosivo
+        )
+        
+        self.sincronizar_interfaz()
+        self.input_dano.clear()
+        
+        for chk in [self.chk_mitad_sp, self.chk_ignora_sp, self.chk_cabeza, 
+                    self.chk_craneo, self.chk_sin_abr, self.chk_explosivo]:
+            chk.setChecked(False)
+    # -----------------------------------------
 
     def _ui_ajustar_stat(self, a, c): controlador.ajustar_stat_secundario(self.personaje_obj, a, c); self.sincronizar_interfaz()
     def _ui_ajustar_simple(self, a, c): controlador.ajustar_atributo_simple(self.personaje_obj, a, c); self.sincronizar_interfaz()
@@ -520,72 +578,51 @@ class TarjetaBase(QFrame):
     def _ui_ajustar_municion(self, a, c): controlador.ajustar_municion_arma(self.personaje_obj, a, c); self.sincronizar_interfaz()
     def _ui_recargar_max(self, a): controlador.recargar_arma_maxima(self.personaje_obj, a); self.sincronizar_interfaz()
     
-    # ==================================================================
     def _ui_ejecutar_disparo(self, nombre_arma, cantidad):
-        """
-        Resta munición y, si es un NPC, genera la tirada de ataque 
-        incluyendo el modificador situacional del cuadro de texto.
-        """
-        import controlador # Importación local para evitar circulares
-        
-        # 1. Obtener datos del arma
+        import controlador 
         arma_datos = self.personaje_obj.armas.get(nombre_arma)
         if not arma_datos:
             return
 
         es_npc = getattr(self.personaje_obj, 'es_npc', False)
-        es_melee = (arma_datos["max"] == 0) # Si su máximo es 0, es cuerpo a cuerpo
+        es_melee = (arma_datos["max"] == 0) 
 
-        # 2. Validar falta de munición (SOLO SI NO ES MELEE)
         if not es_melee and arma_datos["actual"] < cantidad:
-            # Solo informamos en el panel si es un NPC
             if es_npc and hasattr(self, 'lbl_resultado'):
                 self.lbl_resultado.setText(f"<b style='color: #FF0000;'>⚠️ {nombre_arma.upper()} SIN BALAS</b>")
             return
 
-        # 3. Restar munición lógicamente (SOLO SI NO ES MELEE)
         if not es_melee:
             controlador.ajustar_municion_arma(self.personaje_obj, nombre_arma, -cantidad)
             self.sincronizar_interfaz()
 
-        # 4. Si NO es NPC o no tiene panel de resultados, terminamos aquí
         if not es_npc or not hasattr(self, 'lbl_resultado'):
             return
-
-        # 5. --- LÓGICA EXCLUSIVA DE NPCs (Cálculo de Dados) ---
-        
-        # Capturamos el modificador del cuadro de texto (MOD ATK)
+            
         mod_situacional = 0
         if hasattr(self, 'input_mod_ataque'):
             try:
                 texto_mod = self.input_mod_ataque.text().strip()
                 mod_situacional = int(texto_mod) if texto_mod else 0
             except ValueError:
-                mod_situacional = 0 # Protección contra letras o símbolos
+                mod_situacional = 0 
         
-        # --- NUEVA LÓGICA: DISPARO APUNTADO ---
         if hasattr(self, 'check_apuntado') and self.check_apuntado.isChecked():
-            mod_situacional -= 8  # Restamos 8 al total de la tirada
-        # --------------------------------------
+            mod_situacional -= 8  
 
-        # Extraemos estadísticas de combate
         base_combate = getattr(self.personaje_obj, 'base_combate', 0)
         dados_dano = arma_datos.get('dados_dano', 0) 
         es_autofuego = (cantidad == 10)
 
-        # Generamos la tirada llamando al controlador con el nuevo parámetro
         texto_html = controlador.generar_tirada_ataque(
             nombre_arma=nombre_arma,
             base=base_combate,
             dados_dano=dados_dano,
             es_autofuego=es_autofuego,
-            mod_situacional=mod_situacional # Envia el valor del cuadrito amarillo
+            mod_situacional=mod_situacional 
         )
         
-        # Actualizamos el recuadro negro del NPC
         self.lbl_resultado.setText(texto_html)
-    # ==================================================================
-    
     
     def _ui_resetear(self): 
         controlador.resetear_personaje_logico(self.personaje_obj)
@@ -627,7 +664,7 @@ class TarjetaJugador(TarjetaBase):
         
         fila_death = QHBoxLayout()
         lbl_tit = QLabel("💀☠️💀")
-        lbl_tit.setFixedWidth(85) # <--- ANCHO UNIFICADO
+        lbl_tit.setFixedWidth(85) 
         lbl_tit.setObjectName("LblStatTit") 
         
         lbl_val = QLabel(str(self.personaje_obj.death_penalty))
@@ -675,17 +712,13 @@ class TarjetaNPC(TarjetaBase):
         layout.addWidget(btn_cerrar)
         
     def _agregar_elementos_col_der(self, layout):
-        # 1. Llamar a la clase base para que dibuje la fila de fuego, daño y move primero
         super()._agregar_elementos_col_der(layout)
         
-        # 2. Fila de Modificador de Combate
         fila_mod = QHBoxLayout()
-        
         lbl_mod = QLabel("🎯 MOD. ATK")
-        lbl_mod.setFixedWidth(85) # <--- ANCHO UNIFICADO
+        lbl_mod.setFixedWidth(85) 
         lbl_mod.setObjectName("LblStatTit") 
         
-        # Este es el cuadro donde escribirás el -2, +1, etc.
         self.input_mod_ataque = QLineEdit()
         self.input_mod_ataque.setPlaceholderText("0")
         self.input_mod_ataque.setFixedWidth(45)
@@ -706,7 +739,6 @@ class TarjetaNPC(TarjetaBase):
         fila_mod.addStretch(1)
         layout.addLayout(fila_mod)
         
-        # --- NUEVO: CASILLA DE DISPARO APUNTADO ---
         fila_apuntado = QHBoxLayout()
         self.check_apuntado = QCheckBox("🎯 APUNTADO (-8)")
         self.check_apuntado.setStyleSheet("""
@@ -728,17 +760,12 @@ class TarjetaNPC(TarjetaBase):
         """)
         fila_apuntado.addWidget(self.check_apuntado)
         layout.addLayout(fila_apuntado)
-        # ------------------------------------------
         
-
-        # 3. Construir la nueva fila de Iniciativa debajo
         fila_ini = QHBoxLayout()
-        
         lbl_ini = QLabel("⚡ INIT")
-        lbl_ini.setFixedWidth(85) # <--- ANCHO UNIFICADO
+        lbl_ini.setFixedWidth(85) 
         lbl_ini.setObjectName("LblStatTit") 
         
-    
         btn_ini = QPushButton("TIRAR DADOS")
         btn_ini.setFixedWidth(92) 
         btn_ini.setStyleSheet("color: #00FFFF; font-weight: bold; background-color: #1A1A1A; border: 1px solid #00FFFF; border-radius: 3px;")
@@ -751,7 +778,6 @@ class TarjetaNPC(TarjetaBase):
         layout.addLayout(fila_ini)
 
     def _ui_ejecutar_iniciativa(self):
-        """Llama al controlador para generar la iniciativa y la muestra en el panel."""
         import controlador
         base_ini = getattr(self.personaje_obj, 'base_iniciativa', 0)
         
@@ -760,7 +786,6 @@ class TarjetaNPC(TarjetaBase):
             self.lbl_resultado.setText(texto_html)
 
     def _agregar_columnas_extra(self, layout):
-        # 1. Columna de Mejoras (si el NPC tiene)
         if hasattr(self.personaje_obj, "mejoras") and self.personaje_obj.mejoras:
             c_mej = QWidget(); l_mej = QVBoxLayout(c_mej)
             l_mej.setContentsMargins(15, 0, 0, 0)
@@ -771,23 +796,16 @@ class TarjetaNPC(TarjetaBase):
             for m in self.personaje_obj.mejoras:
                 lbl_m = QLabel(f"• {m['nombre']}")
                 lbl_m.setObjectName("LblTextoMejora") 
-
-                # --- TOOLTIP DE MEJORAS ---
                 texto_tooltip = construir_tooltip(m['nombre'], m.get('descripcion', ''), font_size=12)
                 lbl_m.setToolTip(texto_tooltip)
                 lbl_m.setCursor(Qt.CursorShape.WhatsThisCursor)
-                # --------------------------
-
                 l_mej.addWidget(lbl_m)
             l_mej.addStretch(1)
             layout.addWidget(c_mej)
 
-        # 2. PANEL DE RESULTADOS DE COMBATE (Exclusivo de NPCs)
         self.frame_resultado = QFrame()
-        self.frame_resultado.setFixedSize(220, 90) # Tamaño original amplio
-        self.frame_resultado.setStyleSheet("""
-            QFrame { background-color: #0d0d0d; border: 1px solid #333333; border-radius: 4px; }
-        """)
+        self.frame_resultado.setFixedSize(220, 90)
+        self.frame_resultado.setStyleSheet("QFrame { background-color: #0d0d0d; border: 1px solid #333333; border-radius: 4px; }")
         
         layout_res = QVBoxLayout(self.frame_resultado)
         layout_res.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -800,7 +818,6 @@ class TarjetaNPC(TarjetaBase):
         
         layout.addWidget(self.frame_resultado)
 
-    
 
 # =============================================================================
 # EL PATRÓN FÁBRICA (FACTORY PATTERN) PARA COMPATIBILIDAD CON MAIN.PY

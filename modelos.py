@@ -1,3 +1,5 @@
+import math
+
 class Personaje:
     def __init__(self, nombre, max_hp, max_body_sp, max_head_sp, max_luck, move, 
                  armas=None, death_penalty=0, mejoras=None, id_db=None, es_npc=False):
@@ -24,28 +26,57 @@ class Personaje:
         self.armas = armas if armas is not None else {}
         self.mejoras = mejoras if mejoras is not None else []
 
-    def aplicar_impacto(self, danio_bruto, es_cabeza=False, es_melee=False, es_directo=False, reduccion_sp=1):
-        if es_directo:
-            danio_final = max(0, danio_bruto - self.reduccion_danio)
-            self.hp = max(0, self.hp - danio_final)
+    import math
+
+# (Dentro de tu class Personaje:)
+
+    def procesar_impacto(self, dano_base, mitad_sp, ignora_sp, cabeza, craneo, sin_abrasion, explosivo):
+        """
+        Ejecuta la lógica de mitigación, multiplicación y abrasión de manera desacoplada.
+        Muta directamente los estados (hp, body_sp, head_sp) de la instancia.
+        """
+        # 1. Determinar zona de impacto
+        es_cabeza = cabeza or craneo
+        sp_actual = self.head_sp if es_cabeza else self.body_sp
+
+        # 2. Calcular SP Efectivo (Filtro de Penetración)
+        if ignora_sp:
+            sp_efectivo = 0
+        elif mitad_sp:
+            sp_efectivo = math.ceil(sp_actual / 2)
+        else:
+            sp_efectivo = sp_actual
+
+        # 3. Calcular Traspaso
+        dano_penetrante = dano_base - sp_efectivo
+
+        # Condición de salida: Si la armadura absorbe todo el daño, no hay efectos.
+        if dano_penetrante <= 0:
             return
 
-        sp_actual = self.head_sp if es_cabeza else self.body_sp
-        proteccion = sp_actual // 2 if es_melee else sp_actual
+        # 4. Multiplicador de Zona Escalar
+        multiplicador = 1
+        if craneo:
+            multiplicador = 4
+        elif cabeza:
+            multiplicador = 2
         
-        danio_que_pasa = max(0, danio_bruto - proteccion)
-        
-        if es_cabeza:
-            danio_que_pasa *= 2
-            
-        danio_final = max(0, danio_que_pasa - self.reduccion_danio)
-        self.hp = max(0, self.hp - danio_final)
-        
-        if danio_bruto > 0:
+        dano_multiplicado = dano_penetrante * multiplicador
+
+        # 5. Reducción Plana de Daño (Definida por la UI)
+        reduccion = getattr(self, "reduccion_danio", 0)
+        dano_final = max(0, dano_multiplicado - reduccion)
+
+        # 6. Mutación de Puntos de Golpe (HP)
+        self.hp = max(0, self.hp - dano_final)
+
+        # 7. Abrasión de Armadura (Condicionada al traspaso previo)
+        if not sin_abrasion:
+            desgaste = 2 if explosivo else 1
             if es_cabeza:
-                self.head_sp = max(0, self.head_sp - reduccion_sp)
+                self.head_sp = max(0, self.head_sp - desgaste)
             else:
-                self.body_sp = max(0, self.body_sp - reduccion_sp)
+                self.body_sp = max(0, self.body_sp - desgaste)
 
     def curar(self, cantidad):
         self.hp = min(self.max_hp, self.hp + cantidad)

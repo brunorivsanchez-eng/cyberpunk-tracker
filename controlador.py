@@ -5,23 +5,37 @@ import random
 # LÓGICA DE COMBATE Y MECÁNICAS PURAS
 # ==========================================
 
-def procesar_ataque(personaje_obj, cantidad_danio, es_cabeza, es_melee, es_directo):
-    """Aplica daño a un personaje individual."""
-    personaje_obj.aplicar_impacto(cantidad_danio, es_cabeza, es_melee, es_directo)
+def procesar_impacto_unificado(personaje_obj, dano_base, mitad_sp, ignora_sp, cabeza, craneo, sin_abrasion, explosivo):
+    """
+    Punto de entrada desde la UI unificada. Enruta los parámetros de los checkboxes 
+    al método interno de cálculo matemático del modelo.
+    """
+    personaje_obj.procesar_impacto(
+        dano_base=dano_base,
+        mitad_sp=mitad_sp,
+        ignora_sp=ignora_sp,
+        cabeza=cabeza,
+        craneo=craneo,
+        sin_abrasion=sin_abrasion,
+        explosivo=explosivo
+    )
 
 def procesar_ataque_aoe(lista_objetivos, danio_bruto, tipo_ataque):
-    """Aplica daño en área a múltiples personajes (solo los modelos)."""
+    """Aplica daño en área a múltiples personajes adaptado a la nueva lógica."""
     for personaje_obj in lista_objetivos:
         if tipo_ataque == "Cuerpo (SP -1)":
-            personaje_obj.aplicar_impacto(danio_bruto, es_cabeza=False, es_melee=False, es_directo=False, reduccion_sp=1)
+            # Normal: daño_base, mitad_sp, ignora_sp, cabeza, craneo, sin_abrasion, explosivo
+            personaje_obj.procesar_impacto(danio_bruto, False, False, False, False, False, False)
         elif tipo_ataque == "Cuerpo (SP -2)":
-            personaje_obj.aplicar_impacto(danio_bruto, es_cabeza=False, es_melee=False, es_directo=False, reduccion_sp=2)
+            # Explosivo
+            personaje_obj.procesar_impacto(danio_bruto, False, False, False, False, False, True)
         elif tipo_ataque == "Directo":
-            personaje_obj.aplicar_impacto(danio_bruto, es_cabeza=False, es_melee=False, es_directo=True)
+            # Ignora SP y No Abrasa
+            personaje_obj.procesar_impacto(danio_bruto, False, True, False, False, True, False)
 
 def aplicar_dano_fijo(personaje_obj, cantidad):
-    """Aplica daño directo al HP, ignorando armadura."""
-    personaje_obj.aplicar_impacto(cantidad, es_cabeza=False, es_melee=False, es_directo=True)
+    """Aplica daño directo al HP (como botones de fuego), ignorando armadura y sin abrasión."""
+    personaje_obj.procesar_impacto(cantidad, False, True, False, False, True, False)
 
 def procesar_curacion(personaje_obj, cantidad):
     """Restaura HP al personaje."""
@@ -62,10 +76,7 @@ def resetear_personaje_logico(personaje_obj):
     if hasattr(personaje_obj, "armas"):
         for nombre_arma, datos in personaje_obj.armas.items():
             datos["actual"] = datos["max"]
-            
 
-
-import random
 
 # =============================================================================
 # MOTOR DE COMBATE: TIRADAS DE DADOS Y REGLAS

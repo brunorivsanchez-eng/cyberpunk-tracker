@@ -282,68 +282,39 @@ INSERT INTO buffos (nombre, descripcion) VALUES
 /* ==============================================================================
    POBLACIÓN DEL BESTIARIO: NPCS POR TIERS
 ============================================================================== */
+/* ==============================================================================
+   NUEVOS NPCS: MAELSTROM (Para la sesión actual)
+============================================================================== */
+
+-- 1. Insertar las Estadísticas Base (Tabla: npc)
 INSERT INTO npc 
 (nombre, tier, faccion, max_hp, max_body_sp, max_head_sp, max_move, base_combate, base_iniciativa) 
 VALUES 
--- TIER 1: Carne de Cañón (Combate: 8-9 | SP: 0 o 4)
-('Street Kid',                1, 'Genérico',    20,  0,  0, 5,  8,  4),
-('Maelstrom Kid',             1, 'Maelstrom',   25,  4,  4, 6,  9,  5),
-('Dron Básico',               1, 'Dron',        20,  0,  0, 8,  10, 5), 
+-- Maelstrom Básico (Tier 1): Vida baja, SP 4, estadísticas promedio de matón.
+('Maelstrom Ganger', 1, 'Maelstrom', 25, 4, 4, 6, 9, 5),
 
--- TIER 2: Amenazas Estándar (Combate: 9-10 | SP: 4 o 7 si es Corpo)
-('Arasaka RAT',               2, 'Arasaka',     30,  7,  7, 5, 10, 5), 
-('Netrunner Hostil',          2, 'Genérico',    30,  4,  4, 5,  9, 5),
-('Punk',      2, 'Genérico',    35,  4,  4, 6, 10, 6), 
+-- Maelstrom Jefe (Tier 3): Vida alta, SP 7, letal en combate, rápido.
+('Maelstrom Cyberpsycho (Jefe)', 3, 'Maelstrom', 45, 7, 7, 7, 12, 7);
 
--- TIER 3: Élites y Tenientes (Combate: 11-13 | SP: 7 a 11)
-('Soldado de Asalto Militech',3, 'Militech',    45, 15, 15, 4, 10, 6), 
-('Arasaka Elite Pesada',      3, 'Arasaka',     40, 16, 16, 4, 11, 7), 
-('Jefe de Banda',             3, 'Genérico',    50, 11, 11, 5, 12, 6); 
-
-
-/* ==============================================================================
-   2. EQUIPAMIENTO DE ARMAMENTO (npc_armas)
-============================================================================== */
+-- 2. Equipar Armas (Tabla: npc_armas)
+-- Armamos al Ganger básico con una pistola normal y un cuchillo (cuerpo a cuerpo).
 INSERT INTO npc_armas (id_npc, id_plantilla) VALUES 
--- Tier 1
-((SELECT id_npc FROM npc WHERE nombre = 'Street Kid'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola mediana')),
-((SELECT id_npc FROM npc WHERE nombre = 'Street Kid'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Arma cac (Media)')),
+((SELECT id_npc FROM npc WHERE nombre = 'Maelstrom Ganger'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola mediana')),
+((SELECT id_npc FROM npc WHERE nombre = 'Maelstrom Ganger'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Arma cac (Media)')),
 
-((SELECT id_npc FROM npc WHERE nombre = 'Maelstrom Kid'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Subfusil')),
-((SELECT id_npc FROM npc WHERE nombre = 'Maelstrom Kid'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Arma cac (Pesada)')),
+-- Armamos al Jefe con un Subfusil Pesado (Autofuego letal) y daño cuerpo a cuerpo brutal.
+((SELECT id_npc FROM npc WHERE nombre = 'Maelstrom Cyberpsycho (Jefe)'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Subfusil pesado')),
+((SELECT id_npc FROM npc WHERE nombre = 'Maelstrom Cyberpsycho (Jefe)'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Arma cac (Pesada)'));
 
-((SELECT id_npc FROM npc WHERE nombre = 'Dron Básico'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Subfusil')),
+-- 3. Asignar Buffos / Mejoras Cibernéticas (Tabla: npc_buffos)
+-- Al Ganger básico le damos visión nocturna (muy común en los ojos rojos de Maelstrom).
+INSERT INTO npc_buffos (id_npc, id_buffo) VALUES 
+((SELECT id_npc FROM npc WHERE nombre = 'Maelstrom Ganger'), (SELECT id_buffo FROM buffos WHERE nombre = 'Luz tenue / IR / UV')),
 
--- Tier 2
-((SELECT id_npc FROM npc WHERE nombre = 'Arasaka RAT'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola pesada')),
-((SELECT id_npc FROM npc WHERE nombre = 'Arasaka RAT'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Subfusil pesado')),
-
-((SELECT id_npc FROM npc WHERE nombre = 'Netrunner Hostil'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola pesada')),
-
-((SELECT id_npc FROM npc WHERE nombre = 'Punk'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Escopeta')),
-((SELECT id_npc FROM npc WHERE nombre = 'Punk'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Arma cac (Media)')),
-
--- Tier 3
-((SELECT id_npc FROM npc WHERE nombre = 'Soldado de Asalto Militech'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Fusil de asalto')),
-((SELECT id_npc FROM npc WHERE nombre = 'Soldado de Asalto Militech'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Granada estándar')),
-((SELECT id_npc FROM npc WHERE nombre = 'Soldado de Asalto Militech'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Granada aturdidora')),
-
-((SELECT id_npc FROM npc WHERE nombre = 'Arasaka Elite Pesada'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Fusil de asalto')),
-((SELECT id_npc FROM npc WHERE nombre = 'Arasaka Elite Pesada'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola muy pesada')),
-((SELECT id_npc FROM npc WHERE nombre = 'Arasaka Elite Pesada'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Arma cac (Muy pesada)')),
-
-((SELECT id_npc FROM npc WHERE nombre = 'Jefe de Banda'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Subfusil pesado')),
-((SELECT id_npc FROM npc WHERE nombre = 'Jefe de Banda'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Escopeta')),
-((SELECT id_npc FROM npc WHERE nombre = 'Jefe de Banda'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Arma cac (Pesada)'));
-
-/* ==============================================================================
-   3. ASIGNACIÓN DE MEJORAS Y CIBEREQUIPO (npc_buffos)
-============================================================================== */
-
-
-
-
-
+-- Al Jefe le damos ciberequipo pesado para volverlo una amenaza seria.
+((SELECT id_npc FROM npc WHERE nombre = 'Maelstrom Cyberpsycho (Jefe)'), (SELECT id_buffo FROM buffos WHERE nombre = 'Luz tenue / IR / UV')),
+((SELECT id_npc FROM npc WHERE nombre = 'Maelstrom Cyberpsycho (Jefe)'), (SELECT id_buffo FROM buffos WHERE nombre = 'Editor de dolor')), -- Ignora estado Gravemente Herido
+((SELECT id_npc FROM npc WHERE nombre = 'Maelstrom Cyberpsycho (Jefe)'), (SELECT id_buffo FROM buffos WHERE nombre = 'Shock Absorber')); -- +1 a Autofuego con el subfusil
 
 /* ==============================================================================
    Creación de un Jugador de prueba (Estado Activo)
