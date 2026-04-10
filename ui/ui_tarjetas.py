@@ -68,6 +68,7 @@ def construir_tooltip(titulo, descripcion, remedio=None, tratamiento=None, font_
 # =============================================================================
 class TarjetaBase(QFrame):
     solicitar_eliminacion = pyqtSignal(object) 
+    datos_actualizados = pyqtSignal()
     
     def __init__(self, personaje_obj, cat_temporales, cat_permanentes):
         super().__init__()
@@ -520,6 +521,8 @@ class TarjetaBase(QFrame):
             for c in self.widgets_referencia["debufos_perm"]:
                 id_deb = c.currentData(Qt.ItemDataRole.UserRole)
                 if id_deb: self.personaje_obj.debufos_permanentes_ids.append(id_deb)
+                
+        self.datos_actualizados.emit()
     # ------------------------------------------------------------------
     # CONTROLADORES DE EVENTOS
     # ------------------------------------------------------------------
@@ -538,7 +541,8 @@ class TarjetaBase(QFrame):
 
         if "hp" in w: w["hp"].setStyleSheet(f"QProgressBar::chunk {{ background-color: {color_barra}; border-radius: 5px; }}")
         if "nombre" in w: w["nombre"].setStyleSheet(f"color: {color_id}; font-family: 'Orbitron', sans-serif; font-size: 14px; font-weight: bold; border: none;")
-
+        self.datos_actualizados.emit()
+        
     # --- NUEVA FUNCIÓN EXTRACTORA DE DATOS ---
     def _ui_procesar_impacto(self):
         txt = self.input_dano.text()

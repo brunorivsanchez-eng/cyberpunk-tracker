@@ -9,7 +9,7 @@ DROP TABLE IF EXISTS jugadores_debuffos CASCADE;
 
 DROP TABLE IF EXISTS plantillas_armas CASCADE;
 DROP TABLE IF EXISTS propiedades_armas CASCADE;
-DROP TABLE IF EXISTS dv_tablas CASCADE; -- ¡NUEVO: Faltaba esta tabla!
+DROP TABLE IF EXISTS dv_tablas CASCADE;
 
 DROP TABLE IF EXISTS buffos CASCADE;
 DROP TABLE IF EXISTS npc CASCADE;
@@ -19,13 +19,13 @@ DROP TABLE IF EXISTS catalogo_debuffos CASCADE;
 
 
 /* ==============================================================================
-    BLOQUE 1: SISTEMA DE BALÍSTICA Y ARMAS 
+    FASE 1: CREACIÓN DE ESTRUCTURAS (TABLAS)
 ============================================================================== */
 
 -- 1. Tabla de Referencia de DVs (Valores de Dificultad)
 CREATE TABLE dv_tablas (
     id_dv_tabla SERIAL PRIMARY KEY,
-    nombre_esquema VARCHAR(100) UNIQUE NOT NULL, -- Ej: 'Pistola', 'Autofuego SMG'
+    nombre_esquema VARCHAR(100) UNIQUE NOT NULL,
     dist_0_6m  INTEGER DEFAULT 0,
     dist_7_12m INTEGER DEFAULT 0,
     dist_13_25m INTEGER DEFAULT 0,
@@ -39,7 +39,7 @@ CREATE TABLE dv_tablas (
 -- 2. Cualidades mecánicas inherentes a las armas
 CREATE TABLE propiedades_armas (
     id_propiedad SERIAL PRIMARY KEY,
-    nombre VARCHAR(100) UNIQUE NOT NULL, -- Ej: 'Fuego Automático', 'Ocultable'
+    nombre VARCHAR(100) UNIQUE NOT NULL,
     descripcion TEXT NOT NULL
 );
 
@@ -53,24 +53,19 @@ CREATE TABLE plantillas_armas (
     dados_dano INTEGER NOT NULL DEFAULT 1
 );
 
--- 4. Tabla relacional Muchos a Muchos (Propiedades por Arma)
+-- 4. Tabla relacional (Propiedades por Arma)
 CREATE TABLE armas_propiedades (
     id_plantilla INTEGER REFERENCES plantillas_armas(id_plantilla) ON DELETE CASCADE,
     id_propiedad INTEGER REFERENCES propiedades_armas(id_propiedad) ON DELETE CASCADE,
     PRIMARY KEY (id_plantilla, id_propiedad)
 );
 
-
-/* ==============================================================================
-   BLOQUE 2: BESTIARIO Y ADVERSARIOS 
-============================================================================== */
-
 -- 5. Catálogo Base de Enemigos
 CREATE TABLE npc (
     id_npc SERIAL PRIMARY KEY,
     nombre VARCHAR(100) UNIQUE NOT NULL,
-    tier INTEGER DEFAULT 1 CHECK (tier BETWEEN 1 AND 4),
-    faccion VARCHAR(50) DEFAULT 'Genérico',
+    tier INTEGER DEFAULT 1,
+    faccion VARCHAR(50),
     max_hp INTEGER NOT NULL,
     max_body_sp INTEGER DEFAULT 0,
     max_head_sp INTEGER DEFAULT 0,
@@ -79,7 +74,7 @@ CREATE TABLE npc (
     base_iniciativa INTEGER DEFAULT 4   
 );
 
--- 6. Catálogo de Buffos y Mejoras Generales para NPCs
+-- 6. Catálogo de Buffos para NPCs
 CREATE TABLE buffos (
     id_buffo SERIAL PRIMARY KEY,
     nombre VARCHAR(100) UNIQUE NOT NULL,
@@ -93,19 +88,14 @@ CREATE TABLE npc_armas (
     PRIMARY KEY (id_npc, id_plantilla)
 );
 
--- 8. Puente: Mejoras y habilidades del NPC
+-- 8. Puente: Mejoras del NPC
 CREATE TABLE npc_buffos (
     id_npc INTEGER REFERENCES npc(id_npc) ON DELETE CASCADE,
     id_buffo INTEGER REFERENCES buffos(id_buffo) ON DELETE CASCADE,
     PRIMARY KEY (id_npc, id_buffo)
 );
 
-
-/* ==============================================================================
-   BLOQUE 3: ESCUADRA (JUGADORES Y ESTADOS)
-============================================================================== */
-
--- 9. Personajes de los Usuarios (Contiene estado en tiempo real)
+-- 9. Personajes de los Usuarios
 CREATE TABLE jugadores (
     id_jugador SERIAL PRIMARY KEY,
     nombre VARCHAR(100) UNIQUE NOT NULL,
@@ -121,7 +111,7 @@ CREATE TABLE jugadores (
     death_penalty INTEGER DEFAULT 0
 );
 
--- 10. Catálogo Base con Columnas Opcionales para Tratamiento (Estados)
+-- 10. Catálogo Base de Estados y Heridas
 CREATE TABLE catalogo_debuffos (
     id_debufo SERIAL PRIMARY KEY,
     nombre VARCHAR(50) NOT NULL,
@@ -132,7 +122,7 @@ CREATE TABLE catalogo_debuffos (
     UNIQUE (nombre, tipo) 
 );
 
--- 11. Puente: Inventario activo del Jugador
+-- 11. Puente: Inventario del Jugador
 CREATE TABLE inventario_jugadores (
     id_jugador INTEGER REFERENCES jugadores(id_jugador) ON DELETE CASCADE,
     id_plantilla INTEGER REFERENCES plantillas_armas(id_plantilla) ON DELETE RESTRICT,
@@ -140,38 +130,35 @@ CREATE TABLE inventario_jugadores (
     PRIMARY KEY (id_jugador, id_plantilla)
 );
 
--- 12. Puente: Estados que afectan al Jugador
+-- 12. Puente: Estados del Jugador
 CREATE TABLE jugadores_debuffos (
     id_jugador INTEGER REFERENCES jugadores(id_jugador) ON DELETE CASCADE,
     id_debufo INTEGER REFERENCES catalogo_debuffos(id_debufo) ON DELETE CASCADE,
     PRIMARY KEY (id_jugador, id_debufo)
 );
+
+
 /* ==============================================================================
-   FASE : POBLADO DE DATOS ARMAS 
+   FASE 2: POBLADO DE CATÁLOGOS BASE (Diccionarios, Armas, Buffos, Debuffos)
 ============================================================================== */
-/* ==============================================================================
-   INSERCIÓN DE DATOS: TABLAS DE DIFICULTAD (DVs)
-============================================================================== */
+
+-- A. DIFICULTADES (DVs)
 INSERT INTO dv_tablas 
 (nombre_esquema, dist_0_6m, dist_7_12m, dist_13_25m, dist_26_50m, dist_51_100m, dist_101_200m, dist_201_400m, dist_401_800m) 
 VALUES
--- Armas de Disparo Estándar (Tiro a Tiro)
 ('Pistolas',                 13, 15, 20, 25, 30, 30, NULL, NULL),
-('Subfusiles',               15, 13, 15, 20, 25, 25,   30, NULL),
-('Escopetas (bala)',         13, 15, 20, 25, 30, 35, NULL, NULL),
-('Fusiles de Asalto',        17, 16, 15, 13, 15, 20,   25,   30),
-('Fusiles de Francotirador', 30, 25, 25, 20, 15, 16,   17,   20),
+('SMG',                      15, 13, 15, 20, 25, 25,   30, NULL),
+('Escopetas',                13, 15, 20, 25, 30, 35, NULL, NULL),
+('Rifle de Asalto',          17, 16, 15, 13, 15, 20,   25,   30),
+('Rifle de Francotirador',   30, 25, 25, 20, 15, 16,   17,   20),
 ('Arcos y Ballestas',        15, 13, 15, 17, 20, 22, NULL, NULL),
 ('Lanzagranadas',            16, 15, 15, 17, 20, 22,   25, NULL),
 ('Lanzamisiles',             17, 16, 15, 15, 20, 20,   25,   30),
 ('Lanzamiento',              16, 15, 15, NULL, NULL, NULL, NULL, NULL),
--- Tablas Especiales para Disparo Automático (Autofuego)
-('Subfusil (Autofuego)',          20, 17, 20, 25, 30, NULL, NULL, NULL),
-('Fusil de Asalto (Autofuego)',   22, 20, 17, 20, 25, NULL, NULL, NULL);
+('SMG (Autofuego)',          20, 17, 20, 25, 30, NULL, NULL, NULL),
+('Rifle de Asalto (Autofuego)', 22, 20, 17, 20, 25, NULL, NULL, NULL);
 
-/* ==============================================================================
-   INSERCIÓN DE DATOS: CUALIDADES DE LAS ARMAS
-============================================================================== */
+-- B. CUALIDADES DE ARMAS
 INSERT INTO propiedades_armas (nombre, descripcion) VALUES 
 ('Disparo Automático (3)', 'Permite multiplicar el daño base con un máximo de 3.'),
 ('Disparo Automático (4)', 'Permite multiplicar el daño base con un máximo de 4.'),
@@ -186,67 +173,37 @@ INSERT INTO propiedades_armas (nombre, descripcion) VALUES
 ('Fuego de Supresión', 'Permite usar la acción de Fuego de Supresión para obligar a los enemigos a cubrirse.'),
 ('Óptica Precisa', 'El arma otorga un bono de +1 a todas las tiradas de ataque en un Disparo Apuntado.');
 
-/* ==============================================================================
-   INSERCIÓN DE DATOS: PLANTILLAS DE ARMAS
-============================================================================== */
+-- C. PLANTILLAS DE ARMAS
 INSERT INTO plantillas_armas (nombre, max_balas, dados_dano, id_dv_estandar, id_dv_autofuego) VALUES 
--- Pistolas
-('Pistola mediana',    12, 2, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Pistolas'), NULL),
+('Pistola mediana',     12, 2, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Pistolas'), NULL), -- ¡AÑADIDA PARA EL NPC GANGER!
 ('Pistola pesada',      8, 3, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Pistolas'), NULL),
 ('Pistola muy pesada',  6, 4, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Pistolas'), NULL),
-
--- Subfusiles
-('Subfusil',           30, 3, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Subfusiles'), (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Subfusil (Autofuego)')),
-('Subfusil pesado',    40, 3, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Subfusiles'), (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Subfusil (Autofuego)')),
-
--- Escopetas
-('Escopeta',            4, 5, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Escopetas (bala)'), NULL),
-
--- Fusiles de Asalto
-('Fusil de asalto',    25, 5, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Fusiles de Asalto'), (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Fusil de Asalto (Autofuego)')),
-
--- Precisión / Francotirador
-('Rifle de Precisión', 10, 5, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Fusiles de Francotirador'), NULL),
-('Fusil de francotirador', 4, 5, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Fusiles de Francotirador'), NULL),
-
--- Armas Pesadas Explosivas
+('SMG',                 30, 3, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'SMG'), (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'SMG (Autofuego)')),
+('Escopeta',            4, 5, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Escopetas'), NULL),
+('Rifle de asalto',     25, 5, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Rifle de Asalto'), (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Rifle de Asalto (Autofuego)')),
+('Rifle de Precisión',  10, 5, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Rifle de Francotirador'), NULL),
+('Rifle de francotirador', 4, 5, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Rifle de Francotirador'), NULL),
 ('Lanzagranadas',       2, 6, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Lanzagranadas'), NULL), 
 ('Lanzamisiles',        1, 8, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Lanzamisiles'), NULL),
-
--- Armas Cuerpo a Cuerpo
 ('Arma cac (Media)',       0, 2, NULL, NULL),
 ('Arma cac (Pesada)',      0, 3, NULL, NULL),
 ('Arma cac (Muy pesada)',  0, 4, NULL, NULL),
-
--- Granadas Arrojadizas
 ('Granada estándar',    1, 6, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Lanzamiento'), NULL),
 ('Granada de humo',     1, 0, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Lanzamiento'), NULL),
 ('Granada aturdidora',  1, 0, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Lanzamiento'), NULL),
 ('Granada incendiaria', 1, 6, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Lanzamiento'), NULL);
 
-/* ==============================================================================
-   INSERCIÓN DE DATOS: RELACIÓN ARMAS <-> PROPIEDADES
-============================================================================== */
+-- D. ASIGNACIÓN PROPIEDADES A ARMAS
 INSERT INTO armas_propiedades (id_plantilla, id_propiedad) VALUES 
--- Pistolas
 ((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola muy pesada'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Disparo Letal')),
-
--- Subfusiles
-((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Subfusil'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Disparo Automático (3)')),
-((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Subfusil'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Fuego de Supresión')),
-((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Subfusil pesado'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Disparo Automático (3)')),
-
--- Escopetas
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'SMG'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Disparo Automático (3)')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'SMG'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Fuego de Supresión')),
 ((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Escopeta'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Cartucho de Escopeta')),
-
--- Fusiles
-((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Fusil de asalto'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Disparo Automático (4)')),
-((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Fusil de asalto'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Fuego de Supresión')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Rifle de asalto'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Disparo Automático (4)')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Rifle de asalto'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Fuego de Supresión')),
 ((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Rifle de Precisión'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Disparo Letal')),
-((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Fusil de francotirador'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Disparo Letal')),
-((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Fusil de francotirador'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Óptica Precisa')),
-
--- Pesadas / Granadas
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Rifle de francotirador'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Disparo Letal')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Rifle de francotirador'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Óptica Precisa')),
 ((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Lanzagranadas'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Explosivo')),
 ((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Lanzamisiles'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Misil')),
 ((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Granada estándar'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Explosivo')),
@@ -254,11 +211,7 @@ INSERT INTO armas_propiedades (id_plantilla, id_propiedad) VALUES
 ((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Granada aturdidora'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Granada Aturdidora')),
 ((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Granada incendiaria'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Efecto Incendiario'));
 
-
-/* ==============================================================================
-   POBLADO COMPLEMENTARIO: BUFFOS, BESTIARIO Y JUGADORES
-============================================================================== */
-
+-- E. CATÁLOGO DE BUFFOS (MEJORAS)
 INSERT INTO buffos (nombre, descripcion) VALUES 
 ('Kerenzikov', 'Permite esquivar ataques a distancia.'),
 ('Sandevistan', 'Actívalo para añadir +3 a Iniciativa durante 1 combate. Si se activa estando ya en combate, aumenta 3 puntos la Iniciativa actual. Reutilizable tras 24 horas.'),
@@ -279,75 +232,7 @@ INSERT INTO buffos (nombre, descripcion) VALUES
 ('Jenkins'' Tendons', 'Fibras musculares sintéticas de contracción rápida. Al usar la acción de Correr, obtienes +4 casillas (puntos de MOV) adicionales de movimiento.'),
 ('Fortified Ankles', 'Articulaciones cinéticas y tendones de titanio. Ignoras cualquier penalización de movimiento al saltar.');
 
-/* ==============================================================================
-   POBLACIÓN DEL BESTIARIO: NPCS POR TIERS
-============================================================================== */
-/* ==============================================================================
-   NUEVOS NPCS: MAELSTROM (Para la sesión actual)
-============================================================================== */
-
--- 1. Insertar las Estadísticas Base (Tabla: npc)
-INSERT INTO npc 
-(nombre, tier, faccion, max_hp, max_body_sp, max_head_sp, max_move, base_combate, base_iniciativa) 
-VALUES 
--- Maelstrom Básico (Tier 1): Vida baja, SP 4, estadísticas promedio de matón.
-('Maelstrom Ganger', 1, 'Maelstrom', 25, 4, 4, 6, 9, 5),
-
--- Maelstrom Jefe (Tier 3): Vida alta, SP 7, letal en combate, rápido.
-('Maelstrom Cyberpsycho (Jefe)', 3, 'Maelstrom', 45, 7, 7, 7, 12, 7);
-
--- 2. Equipar Armas (Tabla: npc_armas)
--- Armamos al Ganger básico con una pistola normal y un cuchillo (cuerpo a cuerpo).
-INSERT INTO npc_armas (id_npc, id_plantilla) VALUES 
-((SELECT id_npc FROM npc WHERE nombre = 'Maelstrom Ganger'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola mediana')),
-((SELECT id_npc FROM npc WHERE nombre = 'Maelstrom Ganger'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Arma cac (Media)')),
-
--- Armamos al Jefe con un Subfusil Pesado (Autofuego letal) y daño cuerpo a cuerpo brutal.
-((SELECT id_npc FROM npc WHERE nombre = 'Maelstrom Cyberpsycho (Jefe)'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Subfusil pesado')),
-((SELECT id_npc FROM npc WHERE nombre = 'Maelstrom Cyberpsycho (Jefe)'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Arma cac (Pesada)'));
-
--- 3. Asignar Buffos / Mejoras Cibernéticas (Tabla: npc_buffos)
--- Al Ganger básico le damos visión nocturna (muy común en los ojos rojos de Maelstrom).
-INSERT INTO npc_buffos (id_npc, id_buffo) VALUES 
-((SELECT id_npc FROM npc WHERE nombre = 'Maelstrom Ganger'), (SELECT id_buffo FROM buffos WHERE nombre = 'Luz tenue / IR / UV')),
-
--- Al Jefe le damos ciberequipo pesado para volverlo una amenaza seria.
-((SELECT id_npc FROM npc WHERE nombre = 'Maelstrom Cyberpsycho (Jefe)'), (SELECT id_buffo FROM buffos WHERE nombre = 'Luz tenue / IR / UV')),
-((SELECT id_npc FROM npc WHERE nombre = 'Maelstrom Cyberpsycho (Jefe)'), (SELECT id_buffo FROM buffos WHERE nombre = 'Editor de dolor')), -- Ignora estado Gravemente Herido
-((SELECT id_npc FROM npc WHERE nombre = 'Maelstrom Cyberpsycho (Jefe)'), (SELECT id_buffo FROM buffos WHERE nombre = 'Shock Absorber')); -- +1 a Autofuego con el subfusil
-
-/* ==============================================================================
-   Creación de un Jugador de prueba (Estado Activo)
-============================================================================== */
-/* ------------------------------------------------------------------------------
-   NUEVO JUGADOR: [Escribe aquí el nombre para no perderte]
------------------------------------------------------------------------------- */
--- 1. Crear las estadísticas base del personaje
-INSERT INTO jugadores (nombre, max_hp, hp, max_body_sp, body_sp, max_head_sp, head_sp, max_luck, luck, max_move) VALUES 
-('Gunslinger', 45, 45, 4, 4, 4, 4, 4, 4, 6),
-('Tank', 60, 60, 4, 4, 4, 4, 6, 6, 6), -- Corregido: Luck max 6 para que coincida con actual
-('Samurai', 45, 45, 7, 7, 7, 7, 4, 4, 8) -- Corregido: SP cabeza de 47 a 7
-;
-
--- 2. Asignarle armas
-INSERT INTO inventario_jugadores (id_jugador, id_plantilla, balas_actuales) 
-VALUES 
-(
-    (SELECT id_jugador FROM jugadores WHERE nombre = 'Gunslinger'), 
-    (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola muy pesada'), 
-    (SELECT max_balas FROM plantillas_armas WHERE nombre = 'Pistola muy pesada')
-),
-(
-    (SELECT id_jugador FROM jugadores WHERE nombre = 'Gunslinger'), 
-    (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Rifle de Precisión'), 
-    (SELECT max_balas FROM plantillas_armas WHERE nombre = 'Rifle de Precisión')
-);
-/* ------------------------------------------------------------------------------
-   FIN NUEVO JUGADOR: 
------------------------------------------------------------------------------- */
-
-
--- Inserción de la lista oficial de estados temporales
+-- F. CATÁLOGO DE ESTADOS (DEBUFFOS TEMPORALES Y PERMANENTES)
 INSERT INTO catalogo_debuffos (nombre, descripcion, tipo, remedio_rapido, tratamiento) VALUES 
 ('---', 'Ranura vacía.', 'Temporal', NULL, NULL),
 ('Cegado', '-4 a toda acción dentro de esta oscuridad.', 'Temporal', NULL, NULL),
@@ -355,17 +240,10 @@ INSERT INTO catalogo_debuffos (nombre, descripcion, tipo, remedio_rapido, tratam
 ('Fuego Mortal', '10 de daño directo al final de tu turno. Requiere gastar una acción para apagar.', 'Temporal', NULL, NULL),
 ('Drogado', '-2 a toda acción mientras dure el efecto.', 'Temporal', NULL, NULL),
 ('Tumbado', 'Movimiento máximo reducido a 1. Requiere gastar una acción para levantarse.', 'Temporal', NULL, NULL),
-('Inconsciente', 'Incapaz de actuar.', 'Temporal', NULL, NULL);
-
-
--- Inserción de la lista oficial de estados permanentes y heridas críticas
-INSERT INTO catalogo_debuffos (nombre, descripcion, tipo, remedio_rapido, tratamiento) VALUES 
+('Inconsciente', 'Incapaz de actuar.', 'Temporal', NULL, NULL),
 ('---', 'Ranura vacía.', 'Permanente', NULL, NULL),
-
--- Estados de Salud Base
 ('Gravemente Herido', '-2 a todas las acciones.', 'Permanente', 'N/D', 'Estabilizar VD 13'),
 ('Mortalmente Herido', '-4 a todas las acciones. -6 a MOV (mínimo 1). Salvación contra muerte al inicio de cada turno. Sufre herida crítica si recibe daño. Penalización a salvación aumenta en 1.', 'Permanente', 'N/D', 'Recuperar a 1 PD tiene VD 17 y queda inconsciente por 1 minuto.'),
-
 ('1- Cráneo Agrietado', 'Disparos a tu cabeza multiplican el daño que atraviesa SP por 4. Penalización salvación muerte +1.', 'Permanente', 'Primeros Auxilios VD 15', 'Paramédico VD 15'),
 ('2- Pierna Desmembrada', 'Pierna desaparecida. -6 a MOV. No puedes esquivar. Penalización salvación muerte +1.', 'Permanente', 'N/D', 'Paramédico VD 21'),
 ('3- Mano Desmembrada', 'La Mano ha desaparecido. Dejas caer objetos en esa mano. Penalización salvación muerte +1.', 'Permanente', 'N/D', 'Paramédico VD 21'),
@@ -382,3 +260,42 @@ INSERT INTO catalogo_debuffos (nombre, descripcion, tipo, remedio_rapido, tratam
 ('14- Ojo Perdido', 'El Ojo se ha ido. -4 a Ataques a Distancia y Percepción visual. La penalización base para Salvación contra Muerte aumenta en 1.', 'Permanente', 'N/D', 'Paramédico VD 21'),
 ('15- Lesión Cerebral', '-2 a todas las acciones. La penalización base para Salvación contra Muerte aumenta en 1.', 'Permanente', 'N/D', 'Paramédico VD 21'),
 ('16- Brazo Desmembrado', 'El Brazo ha desaparecido. Dejas caer inmediatamente cualquier objeto en esa mano. La penalización base para Salvación contra Muerte aumenta en 1.', 'Permanente', 'N/D', 'Paramédico VD 21');
+
+
+/* ==============================================================================
+   FASE 3: POBLADO DE ENTIDADES (JUGADORES Y NPCs)
+============================================================================== */
+
+-- A. JUGADORES
+INSERT INTO jugadores (nombre, max_hp, hp, max_body_sp, body_sp, max_head_sp, head_sp, max_luck, luck, max_move) VALUES 
+('Gunslinger', 45, 45, 4, 4, 4, 4, 4, 4, 6),
+('Tank', 60, 60, 4, 4, 4, 4, 6, 6, 6),
+('Samurai', 45, 45, 7, 7, 7, 7, 4, 4, 8);
+
+-- B. ARMAS DE JUGADORES
+INSERT INTO inventario_jugadores (id_jugador, id_plantilla, balas_actuales) VALUES 
+((SELECT id_jugador FROM jugadores WHERE nombre = 'Gunslinger'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola muy pesada'), (SELECT max_balas FROM plantillas_armas WHERE nombre = 'Pistola muy pesada')),
+((SELECT id_jugador FROM jugadores WHERE nombre = 'Gunslinger'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Rifle de Precisión'), (SELECT max_balas FROM plantillas_armas WHERE nombre = 'Rifle de Precisión')),
+((SELECT id_jugador FROM jugadores WHERE nombre = 'Tank'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Escopeta'), (SELECT max_balas FROM plantillas_armas WHERE nombre = 'Escopeta'))
+;
+
+-- C. NPCs: MAELSTROM
+INSERT INTO npc (nombre, tier, faccion, max_hp, max_body_sp, max_head_sp, max_move, base_combate, base_iniciativa) VALUES 
+('Maelstrom Ganger', 1, 'Maelstrom', 25, 4, 4, 6, 9, 5),
+('Maelstrom Veteran', 2, 'Maelstrom', 35, 4, 4, 6, 11, 7),
+('Maelstrom Elite', 3, 'Maelstrom', 45, 7, 7, 7, 13, 8);
+
+-- D. ARMAS DE NPCs
+INSERT INTO npc_armas (id_npc, id_plantilla) VALUES 
+((SELECT id_npc FROM npc WHERE nombre = 'Maelstrom Ganger'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola mediana')),
+((SELECT id_npc FROM npc WHERE nombre = 'Maelstrom Ganger'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Arma cac (Media)')),
+((SELECT id_npc FROM npc WHERE nombre = 'Maelstrom Veteran'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola pesada')),
+((SELECT id_npc FROM npc WHERE nombre = 'Maelstrom Veteran'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'SMG')),
+((SELECT id_npc FROM npc WHERE nombre = 'Maelstrom Veteran'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Arma cac (Pesada)'));
+
+-- E. BUFFOS DE NPCs
+INSERT INTO npc_buffos (id_npc, id_buffo) VALUES 
+((SELECT id_npc FROM npc WHERE nombre = 'Maelstrom Ganger'), (SELECT id_buffo FROM buffos WHERE nombre = 'Luz tenue / IR / UV')),
+((SELECT id_npc FROM npc WHERE nombre = 'Maelstrom Veteran'), (SELECT id_buffo FROM buffos WHERE nombre = 'Luz tenue / IR / UV')),
+((SELECT id_npc FROM npc WHERE nombre = 'Maelstrom Veteran'), (SELECT id_buffo FROM buffos WHERE nombre = 'Editor de dolor')),
+((SELECT id_npc FROM npc WHERE nombre = 'Maelstrom Veteran'), (SELECT id_buffo FROM buffos WHERE nombre = 'Shock Absorber'));

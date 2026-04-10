@@ -9,6 +9,7 @@ from ui.ui_tarjetas import PersonajeWidget
 from ui.ui_paneles import PanelJugadoresHeader, PanelNPCsHeader
 from ui.ui_dialogos import DialogoAccionGlobal, DialogoBestiario
 
+from vista_jugadores import PantallaJugadores
 import database 
 
 class MainWindow(QMainWindow):
@@ -39,6 +40,9 @@ class MainWindow(QMainWindow):
         
         self.pjs = pjs_cargados if pjs_cargados is not None else []
         self.registro_personajes = [] 
+        # --- CREAR SEGUNDA PANTALLA (Jugadores) ---
+        self.pantalla_jugadores = PantallaJugadores(self.cat_temporales, self.cat_permanentes)
+        self.pantalla_jugadores.show() # Se abre automáticamente al abrir el tracker
 
         # --- SECCIÓN JUGADORES ---
         header_pjs = PanelJugadoresHeader(self.abrir_dialogo_accion_global)
@@ -46,6 +50,7 @@ class MainWindow(QMainWindow):
         
         for p in self.pjs:
             widget_pj = PersonajeWidget(p, self.cat_temporales, self.cat_permanentes, es_npc=False)
+            widget_pj.datos_actualizados.connect(self.guardar_estado_en_vivo)
             self.registro_personajes.append((p, widget_pj))
             self.layout_lista.addWidget(widget_pj)
 
@@ -60,6 +65,7 @@ class MainWindow(QMainWindow):
 
         scroll.setWidget(contenedor_central)
         self.setCentralWidget(scroll)
+        self.guardar_estado_en_vivo()
 
     # ==========================================
     # GESTIÓN DE NPCs Y COMBATE (BATCH PROCESSING)
@@ -103,6 +109,7 @@ class MainWindow(QMainWindow):
 
                 widget_npc = PersonajeWidget(nuevo_npc, self.cat_temporales, self.cat_permanentes, es_npc=True)
                 widget_npc.solicitar_eliminacion.connect(lambda p=nuevo_npc, w=widget_npc: self._eliminar_npc_widget(p, w))
+                widget_npc.datos_actualizados.connect(self.guardar_estado_en_vivo)
                 
                 self.registro_personajes.append((nuevo_npc, widget_npc))
                 self.layout_npcs_activos.addWidget(widget_npc)
@@ -110,6 +117,7 @@ class MainWindow(QMainWindow):
         QApplication.processEvents() 
         bar = self.centralWidget().verticalScrollBar()
         bar.setValue(bar.maximum())
+        self.guardar_estado_en_vivo()
         
     def abrir_dialogo_accion_global(self, es_npc):
         """Función unificada para abrir el diálogo de AoE y Estados."""
@@ -131,7 +139,12 @@ class MainWindow(QMainWindow):
 
         self.layout_npcs_activos.removeWidget(widget_obj)
         widget_obj.deleteLater()
+        self.guardar_estado_en_vivo()
 
+    def guardar_estado_en_vivo(self):
+        """En lugar de guardar en DB, manda la RAM fresca a la segunda pantalla."""
+        self.pantalla_jugadores.actualizar_desde_memoria(self.registro_personajes)
+        
     def closeEvent(self, event):
         database.guardar_partida_db(self.pjs, []) 
         database.cerrar_conexion_pool() 
