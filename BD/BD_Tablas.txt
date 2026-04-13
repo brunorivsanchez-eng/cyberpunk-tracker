@@ -1,0 +1,125 @@
+/* ==============================================================================
+   FASE 0: LIMPIEZA DEL ENTORNO (De Hijas a Padres)
+============================================================================== */
+DROP TABLE IF EXISTS armas_propiedades CASCADE;
+DROP TABLE IF EXISTS npc_armas CASCADE;
+DROP TABLE IF EXISTS npc_buffos CASCADE;
+DROP TABLE IF EXISTS inventario_jugadores CASCADE; -- Lo dejamos aquí para que borre la vieja
+DROP TABLE IF EXISTS jugadores_debuffos CASCADE;
+DROP TABLE IF EXISTS plantillas_armas CASCADE;
+DROP TABLE IF EXISTS propiedades_armas CASCADE;
+DROP TABLE IF EXISTS dv_tablas CASCADE;
+DROP TABLE IF EXISTS buffos CASCADE;
+DROP TABLE IF EXISTS npc CASCADE;
+DROP TABLE IF EXISTS jugadores CASCADE;
+DROP TABLE IF EXISTS catalogo_debuffos CASCADE;
+
+/* ==============================================================================
+    FASE 1: CREACIÓN DE ESTRUCTURAS (TABLAS)
+============================================================================== */
+
+-- 1. Tabla de Referencia de DVs (Valores de Dificultad)
+CREATE TABLE dv_tablas (
+    id_dv_tabla SERIAL PRIMARY KEY,
+    nombre_esquema VARCHAR(100) UNIQUE NOT NULL,
+    dist_0_6m  INTEGER DEFAULT 0,
+    dist_7_12m INTEGER DEFAULT 0,
+    dist_13_25m INTEGER DEFAULT 0,
+    dist_26_50m INTEGER DEFAULT 0,
+    dist_51_100m INTEGER DEFAULT 0,
+    dist_101_200m INTEGER DEFAULT 0,
+    dist_201_400m INTEGER DEFAULT 0,
+    dist_401_800m INTEGER DEFAULT 0
+);
+
+-- 2. Cualidades mecánicas inherentes a las armas
+CREATE TABLE propiedades_armas (
+    id_propiedad SERIAL PRIMARY KEY,
+    nombre VARCHAR(100) UNIQUE NOT NULL,
+    descripcion TEXT NOT NULL
+);
+
+-- 3. Moldes base de armamento (Plantillas)
+CREATE TABLE plantillas_armas (
+    id_plantilla SERIAL PRIMARY KEY,
+    nombre VARCHAR(100) UNIQUE NOT NULL,
+    id_dv_estandar INTEGER REFERENCES dv_tablas(id_dv_tabla) ON DELETE SET NULL,
+    id_dv_autofuego INTEGER REFERENCES dv_tablas(id_dv_tabla) ON DELETE SET NULL,
+    dados_dano INTEGER NOT NULL DEFAULT 1
+);
+
+-- 4. Tabla relacional (Propiedades por Arma)
+CREATE TABLE armas_propiedades (
+    id_plantilla INTEGER REFERENCES plantillas_armas(id_plantilla) ON DELETE CASCADE,
+    id_propiedad INTEGER REFERENCES propiedades_armas(id_propiedad) ON DELETE CASCADE,
+    PRIMARY KEY (id_plantilla, id_propiedad)
+);
+
+-- 5. Catálogo Base de Enemigos
+CREATE TABLE npc (
+    id_npc SERIAL PRIMARY KEY,
+    nombre VARCHAR(100) UNIQUE NOT NULL,
+    tier INTEGER DEFAULT 1,
+    faccion VARCHAR(50),
+    max_hp INTEGER NOT NULL,
+    max_body_sp INTEGER DEFAULT 0,
+    max_head_sp INTEGER DEFAULT 0,
+    max_move INTEGER DEFAULT 5,
+    base_combate INTEGER DEFAULT 10,    
+    base_iniciativa INTEGER DEFAULT 4   
+);
+
+-- 6. Catálogo de Buffos para NPCs
+CREATE TABLE buffos (
+    id_buffo SERIAL PRIMARY KEY,
+    nombre VARCHAR(100) UNIQUE NOT NULL,
+    descripcion TEXT NOT NULL
+);
+
+-- 7. Puente: Armamento predeterminado del NPC
+CREATE TABLE npc_armas (
+    id_npc INTEGER REFERENCES npc(id_npc) ON DELETE CASCADE,
+    id_plantilla INTEGER REFERENCES plantillas_armas(id_plantilla) ON DELETE CASCADE,
+    PRIMARY KEY (id_npc, id_plantilla)
+);
+
+-- 8. Puente: Mejoras del NPC
+CREATE TABLE npc_buffos (
+    id_npc INTEGER REFERENCES npc(id_npc) ON DELETE CASCADE,
+    id_buffo INTEGER REFERENCES buffos(id_buffo) ON DELETE CASCADE,
+    PRIMARY KEY (id_npc, id_buffo)
+);
+
+-- 9. Personajes de los Usuarios
+CREATE TABLE jugadores (
+    id_jugador SERIAL PRIMARY KEY,
+    nombre VARCHAR(100) UNIQUE NOT NULL,
+    max_hp INTEGER NOT NULL,
+    hp INTEGER NOT NULL,
+    max_body_sp INTEGER DEFAULT 0,
+    body_sp INTEGER DEFAULT 0,
+    max_head_sp INTEGER DEFAULT 0,
+    head_sp INTEGER DEFAULT 0,
+    max_luck INTEGER DEFAULT 0,
+    luck INTEGER DEFAULT 0,
+    max_move INTEGER DEFAULT 5,
+    death_penalty INTEGER DEFAULT 0
+);
+
+-- 10. Catálogo Base de Estados y Heridas
+CREATE TABLE catalogo_debuffos (
+    id_debufo SERIAL PRIMARY KEY,
+    nombre VARCHAR(50) NOT NULL,
+    descripcion TEXT NOT NULL,
+    tipo VARCHAR(20) CHECK (tipo IN ('Temporal', 'Permanente')) NOT NULL,
+    remedio_rapido TEXT,
+    tratamiento TEXT,
+    UNIQUE (nombre, tipo) 
+);
+
+-- 11. Puente: Estados del Jugador
+CREATE TABLE jugadores_debuffos (
+    id_jugador INTEGER REFERENCES jugadores(id_jugador) ON DELETE CASCADE,
+    id_debufo INTEGER REFERENCES catalogo_debuffos(id_debufo) ON DELETE CASCADE,
+    PRIMARY KEY (id_jugador, id_debufo)
+);

@@ -41,51 +41,11 @@ def cargar_partida_db():
                 filas_jugadores = cursor.fetchall()
 
                 for j in filas_jugadores:
-                    # NUEVA CONSULTA: Extrae datos del arma, sus propiedades y AMBAS tablas de distancias (Simple y Auto)
-                    cursor.execute("""
-                        SELECT pa.nombre, ij.balas_actuales, pa.max_balas, 
-                               pa.dados_dano, pa.id_dv_estandar, pa.id_dv_autofuego,
-                               COALESCE(string_agg(pr.descripcion, ' | '), '') as efecto,
-                               dvs.dist_0_6m AS s_0_6, dvs.dist_7_12m AS s_7_12, dvs.dist_13_25m AS s_13_25, dvs.dist_26_50m AS s_26_50, 
-                               dvs.dist_51_100m AS s_51_100, dvs.dist_101_200m AS s_101_200, dvs.dist_201_400m AS s_201_400, dvs.dist_401_800m AS s_401_800,
-                               dva.dist_0_6m AS a_0_6, dva.dist_7_12m AS a_7_12, dva.dist_13_25m AS a_13_25, dva.dist_26_50m AS a_26_50, 
-                               dva.dist_51_100m AS a_51_100, dva.dist_101_200m AS a_101_200, dva.dist_201_400m AS a_201_400, dva.dist_401_800m AS a_401_800
-                        FROM inventario_jugadores ij
-                        JOIN plantillas_armas pa ON ij.id_plantilla = pa.id_plantilla
-                        LEFT JOIN armas_propiedades ap ON pa.id_plantilla = ap.id_plantilla
-                        LEFT JOIN propiedades_armas pr ON ap.id_propiedad = pr.id_propiedad
-                        LEFT JOIN dv_tablas dvs ON pa.id_dv_estandar = dvs.id_dv_tabla
-                        LEFT JOIN dv_tablas dva ON pa.id_dv_autofuego = dva.id_dv_tabla
-                        WHERE ij.id_jugador = %s
-                        GROUP BY pa.nombre, ij.balas_actuales, pa.max_balas, pa.dados_dano, pa.id_dv_estandar, pa.id_dv_autofuego,
-                                 dvs.dist_0_6m, dvs.dist_7_12m, dvs.dist_13_25m, dvs.dist_26_50m, dvs.dist_51_100m, dvs.dist_101_200m, dvs.dist_201_400m, dvs.dist_401_800m,
-                                 dva.dist_0_6m, dva.dist_7_12m, dva.dist_13_25m, dva.dist_26_50m, dva.dist_51_100m, dva.dist_101_200m, dva.dist_201_400m, dva.dist_401_800m;
-                    """, (j['id_jugador'],))
-                    
-                    dicc_armas = {}
-                    for arma in cursor.fetchall():
-                        dv_simple = [arma['s_0_6'], arma['s_7_12'], arma['s_13_25'], arma['s_26_50'], arma['s_51_100'], arma['s_101_200'], arma['s_201_400'], arma['s_401_800']]
-                        dv_auto = [arma['a_0_6'], arma['a_7_12'], arma['a_13_25'], arma['a_26_50'], arma['a_51_100'], arma['a_101_200'], arma['a_201_400'], arma['a_401_800']]
-                        
-                        # Si el arma no tiene tabla de autofuego, SQL devuelve puros nulos. Lo limpiamos:
-                        if all(v is None for v in dv_auto):
-                            dv_auto = None
-                            
-                        dicc_armas[arma['nombre']] = {
-                            "actual": arma['balas_actuales'],
-                            "max": arma['max_balas'],
-                            "dados_dano": arma['dados_dano'],
-                            "dv_estandar": arma['id_dv_estandar'],
-                            "dv_autofuego": arma['id_dv_autofuego'],
-                            "efecto": arma['efecto'] if arma['efecto'] else "",
-                            "dv_valores": dv_simple,
-                            "dv_valores_auto": dv_auto
-                        }
-
+                    # Al no importar las armas de los jugadores, pasamos un diccionario vacío {}
                     pj = Personaje(
                         nombre=j['nombre'], max_hp=j['max_hp'], max_body_sp=j['max_body_sp'],
                         max_head_sp=j['max_head_sp'], max_luck=j['max_luck'], move=j['max_move'],
-                        armas=dicc_armas, death_penalty=j['death_penalty'], 
+                        armas={}, death_penalty=j['death_penalty'], 
                         id_db=j['id_jugador'], es_npc=False
                     )
                     
@@ -121,20 +81,16 @@ def guardar_partida_db(pjs, npcs):
                     if getattr(p, 'id_db', None) is None:
                         continue
                     
+                    # 1. Guardar stats básicos
                     cursor.execute("""
                         UPDATE jugadores 
                         SET hp = %s, body_sp = %s, head_sp = %s, luck = %s, death_penalty = %s
                         WHERE id_jugador = %s;
                     """, (p.hp, p.body_sp, p.head_sp, p.luck, p.death_penalty, p.id_db))
 
-                    if hasattr(p, "armas"):
-                        for nombre_arma, datos in p.armas.items():
-                            cursor.execute("""
-                                UPDATE inventario_jugadores ij SET balas_actuales = %s
-                                FROM plantillas_armas pa
-                                WHERE ij.id_plantilla = pa.id_plantilla AND ij.id_jugador = %s AND pa.nombre = %s;
-                            """, (datos["actual"], p.id_db, nombre_arma))
-
+                    # Se eliminó el guardado de inventario porque las balas ya no existen y el equipo es estático
+                    
+                    # 2. Guardar debuffos permanentes
                     cursor.execute("DELETE FROM jugadores_debuffos WHERE id_jugador = %s;", (p.id_db,))
                     
                     if hasattr(p, "debufos_permanentes_ids"):
@@ -217,9 +173,9 @@ def instanciar_npc_dinamico(id_npc):
                 n = cursor.fetchone()
                 if not n: return None
 
-                # NUEVA CONSULTA NPCs: Extrae datos del arma, efecto y AMBAS tablas de distancias (Simple y Auto)
+                # NUEVA CONSULTA NPCs: Sin rastros de munición o balas
                 cursor.execute("""
-                    SELECT pa.nombre, pa.max_balas, pa.dados_dano, pa.id_dv_estandar, pa.id_dv_autofuego,
+                    SELECT pa.nombre, pa.dados_dano, pa.id_dv_estandar, pa.id_dv_autofuego,
                            COALESCE(string_agg(pr.descripcion, ' | '), '') as efecto,
                            dvs.dist_0_6m AS s_0_6, dvs.dist_7_12m AS s_7_12, dvs.dist_13_25m AS s_13_25, dvs.dist_26_50m AS s_26_50, 
                            dvs.dist_51_100m AS s_51_100, dvs.dist_101_200m AS s_101_200, dvs.dist_201_400m AS s_201_400, dvs.dist_401_800m AS s_401_800,
@@ -232,7 +188,7 @@ def instanciar_npc_dinamico(id_npc):
                     LEFT JOIN dv_tablas dvs ON pa.id_dv_estandar = dvs.id_dv_tabla
                     LEFT JOIN dv_tablas dva ON pa.id_dv_autofuego = dva.id_dv_tabla
                     WHERE na.id_npc = %s 
-                    GROUP BY pa.nombre, pa.max_balas, pa.dados_dano, pa.id_dv_estandar, pa.id_dv_autofuego,
+                    GROUP BY pa.nombre, pa.dados_dano, pa.id_dv_estandar, pa.id_dv_autofuego,
                              dvs.dist_0_6m, dvs.dist_7_12m, dvs.dist_13_25m, dvs.dist_26_50m, dvs.dist_51_100m, dvs.dist_101_200m, dvs.dist_201_400m, dvs.dist_401_800m,
                              dva.dist_0_6m, dva.dist_7_12m, dva.dist_13_25m, dva.dist_26_50m, dva.dist_51_100m, dva.dist_101_200m, dva.dist_201_400m, dva.dist_401_800m;
                 """, (n['id_npc'],))
@@ -246,8 +202,6 @@ def instanciar_npc_dinamico(id_npc):
                         dv_auto = None
                         
                     dicc_armas[arma['nombre']] = {
-                        "actual": arma['max_balas'], 
-                        "max": arma['max_balas'],
                         "dados_dano": arma['dados_dano'],
                         "dv_estandar": arma['id_dv_estandar'],
                         "dv_autofuego": arma['id_dv_autofuego'],
@@ -277,6 +231,7 @@ def instanciar_npc_dinamico(id_npc):
                 
                 npc_obj.base_combate = n['base_combate']
                 npc_obj.base_iniciativa = n['base_iniciativa']
+                npc_obj.faccion = n['faccion']
                 
                 return npc_obj
     except Exception as e:

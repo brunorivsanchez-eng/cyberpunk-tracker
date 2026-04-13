@@ -1,144 +1,4 @@
 /* ==============================================================================
-   FASE 0: LIMPIEZA DEL ENTORNO (De Hijas a Padres)
-============================================================================== */
-DROP TABLE IF EXISTS armas_propiedades CASCADE;
-DROP TABLE IF EXISTS npc_armas CASCADE;
-DROP TABLE IF EXISTS npc_buffos CASCADE;
-DROP TABLE IF EXISTS inventario_jugadores CASCADE;
-DROP TABLE IF EXISTS jugadores_debuffos CASCADE;
-
-DROP TABLE IF EXISTS plantillas_armas CASCADE;
-DROP TABLE IF EXISTS propiedades_armas CASCADE;
-DROP TABLE IF EXISTS dv_tablas CASCADE;
-
-DROP TABLE IF EXISTS buffos CASCADE;
-DROP TABLE IF EXISTS npc CASCADE;
-
-DROP TABLE IF EXISTS jugadores CASCADE;
-DROP TABLE IF EXISTS catalogo_debuffos CASCADE;
-
-
-/* ==============================================================================
-    FASE 1: CREACIÓN DE ESTRUCTURAS (TABLAS)
-============================================================================== */
-
--- 1. Tabla de Referencia de DVs (Valores de Dificultad)
-CREATE TABLE dv_tablas (
-    id_dv_tabla SERIAL PRIMARY KEY,
-    nombre_esquema VARCHAR(100) UNIQUE NOT NULL,
-    dist_0_6m  INTEGER DEFAULT 0,
-    dist_7_12m INTEGER DEFAULT 0,
-    dist_13_25m INTEGER DEFAULT 0,
-    dist_26_50m INTEGER DEFAULT 0,
-    dist_51_100m INTEGER DEFAULT 0,
-    dist_101_200m INTEGER DEFAULT 0,
-    dist_201_400m INTEGER DEFAULT 0,
-    dist_401_800m INTEGER DEFAULT 0
-);
-
--- 2. Cualidades mecánicas inherentes a las armas
-CREATE TABLE propiedades_armas (
-    id_propiedad SERIAL PRIMARY KEY,
-    nombre VARCHAR(100) UNIQUE NOT NULL,
-    descripcion TEXT NOT NULL
-);
-
--- 3. Moldes base de armamento (Plantillas)
-CREATE TABLE plantillas_armas (
-    id_plantilla SERIAL PRIMARY KEY,
-    nombre VARCHAR(100) UNIQUE NOT NULL,
-    max_balas INTEGER NOT NULL DEFAULT 0,
-    id_dv_estandar INTEGER REFERENCES dv_tablas(id_dv_tabla) ON DELETE SET NULL,
-    id_dv_autofuego INTEGER REFERENCES dv_tablas(id_dv_tabla) ON DELETE SET NULL,
-    dados_dano INTEGER NOT NULL DEFAULT 1
-);
-
--- 4. Tabla relacional (Propiedades por Arma)
-CREATE TABLE armas_propiedades (
-    id_plantilla INTEGER REFERENCES plantillas_armas(id_plantilla) ON DELETE CASCADE,
-    id_propiedad INTEGER REFERENCES propiedades_armas(id_propiedad) ON DELETE CASCADE,
-    PRIMARY KEY (id_plantilla, id_propiedad)
-);
-
--- 5. Catálogo Base de Enemigos
-CREATE TABLE npc (
-    id_npc SERIAL PRIMARY KEY,
-    nombre VARCHAR(100) UNIQUE NOT NULL,
-    tier INTEGER DEFAULT 1,
-    faccion VARCHAR(50),
-    max_hp INTEGER NOT NULL,
-    max_body_sp INTEGER DEFAULT 0,
-    max_head_sp INTEGER DEFAULT 0,
-    max_move INTEGER DEFAULT 5,
-    base_combate INTEGER DEFAULT 10,    
-    base_iniciativa INTEGER DEFAULT 4   
-);
-
--- 6. Catálogo de Buffos para NPCs
-CREATE TABLE buffos (
-    id_buffo SERIAL PRIMARY KEY,
-    nombre VARCHAR(100) UNIQUE NOT NULL,
-    descripcion TEXT NOT NULL
-);
-
--- 7. Puente: Armamento predeterminado del NPC
-CREATE TABLE npc_armas (
-    id_npc INTEGER REFERENCES npc(id_npc) ON DELETE CASCADE,
-    id_plantilla INTEGER REFERENCES plantillas_armas(id_plantilla) ON DELETE CASCADE,
-    PRIMARY KEY (id_npc, id_plantilla)
-);
-
--- 8. Puente: Mejoras del NPC
-CREATE TABLE npc_buffos (
-    id_npc INTEGER REFERENCES npc(id_npc) ON DELETE CASCADE,
-    id_buffo INTEGER REFERENCES buffos(id_buffo) ON DELETE CASCADE,
-    PRIMARY KEY (id_npc, id_buffo)
-);
-
--- 9. Personajes de los Usuarios
-CREATE TABLE jugadores (
-    id_jugador SERIAL PRIMARY KEY,
-    nombre VARCHAR(100) UNIQUE NOT NULL,
-    max_hp INTEGER NOT NULL,
-    hp INTEGER NOT NULL,
-    max_body_sp INTEGER DEFAULT 0,
-    body_sp INTEGER DEFAULT 0,
-    max_head_sp INTEGER DEFAULT 0,
-    head_sp INTEGER DEFAULT 0,
-    max_luck INTEGER DEFAULT 0,
-    luck INTEGER DEFAULT 0,
-    max_move INTEGER DEFAULT 5,
-    death_penalty INTEGER DEFAULT 0
-);
-
--- 10. Catálogo Base de Estados y Heridas
-CREATE TABLE catalogo_debuffos (
-    id_debufo SERIAL PRIMARY KEY,
-    nombre VARCHAR(50) NOT NULL,
-    descripcion TEXT NOT NULL,
-    tipo VARCHAR(20) CHECK (tipo IN ('Temporal', 'Permanente')) NOT NULL,
-    remedio_rapido TEXT,
-    tratamiento TEXT,
-    UNIQUE (nombre, tipo) 
-);
-
--- 11. Puente: Inventario del Jugador
-CREATE TABLE inventario_jugadores (
-    id_jugador INTEGER REFERENCES jugadores(id_jugador) ON DELETE CASCADE,
-    id_plantilla INTEGER REFERENCES plantillas_armas(id_plantilla) ON DELETE RESTRICT,
-    balas_actuales INTEGER NOT NULL,
-    PRIMARY KEY (id_jugador, id_plantilla)
-);
-
--- 12. Puente: Estados del Jugador
-CREATE TABLE jugadores_debuffos (
-    id_jugador INTEGER REFERENCES jugadores(id_jugador) ON DELETE CASCADE,
-    id_debufo INTEGER REFERENCES catalogo_debuffos(id_debufo) ON DELETE CASCADE,
-    PRIMARY KEY (id_jugador, id_debufo)
-);
-
-
-/* ==============================================================================
    FASE 2: POBLADO DE CATÁLOGOS BASE (Diccionarios, Armas, Buffos, Debuffos)
 ============================================================================== */
 
@@ -173,25 +33,25 @@ INSERT INTO propiedades_armas (nombre, descripcion) VALUES
 ('Fuego de Supresión', 'Permite usar la acción de Fuego de Supresión para obligar a los enemigos a cubrirse.'),
 ('Óptica Precisa', 'El arma otorga un bono de +1 a todas las tiradas de ataque en un Disparo Apuntado.');
 
--- C. PLANTILLAS DE ARMAS
-INSERT INTO plantillas_armas (nombre, max_balas, dados_dano, id_dv_estandar, id_dv_autofuego) VALUES 
-('Pistola mediana',     12, 2, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Pistolas'), NULL), -- ¡AÑADIDA PARA EL NPC GANGER!
-('Pistola pesada',      8, 3, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Pistolas'), NULL),
-('Pistola muy pesada',  6, 4, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Pistolas'), NULL),
-('SMG',                 30, 3, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'SMG'), (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'SMG (Autofuego)')),
-('Escopeta',            4, 5, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Escopetas'), NULL),
-('Rifle de asalto',     25, 5, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Rifle de Asalto'), (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Rifle de Asalto (Autofuego)')),
-('Rifle de Precisión',  10, 5, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Rifle de Francotirador'), NULL),
-('Rifle de francotirador', 4, 5, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Rifle de Francotirador'), NULL),
-('Lanzagranadas',       2, 6, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Lanzagranadas'), NULL), 
-('Lanzamisiles',        1, 8, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Lanzamisiles'), NULL),
-('Arma cac (Media)',       0, 2, NULL, NULL),
-('Arma cac (Pesada)',      0, 3, NULL, NULL),
-('Arma cac (Muy pesada)',  0, 4, NULL, NULL),
-('Granada estándar',    1, 6, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Lanzamiento'), NULL),
-('Granada de humo',     1, 0, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Lanzamiento'), NULL),
-('Granada aturdidora',  1, 0, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Lanzamiento'), NULL),
-('Granada incendiaria', 1, 6, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Lanzamiento'), NULL);
+-- C. PLANTILLAS DE ARMAS (Sin max_balas)
+INSERT INTO plantillas_armas (nombre, dados_dano, id_dv_estandar, id_dv_autofuego) VALUES 
+('Pistola mediana',      2, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Pistolas'), NULL), 
+('Pistola pesada',       3, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Pistolas'), NULL),
+('Pistola muy pesada',   4, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Pistolas'), NULL),
+('SMG',                  3, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'SMG'), (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'SMG (Autofuego)')),
+('Escopeta',             5, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Escopetas'), NULL),
+('Rifle de asalto',      5, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Rifle de Asalto'), (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Rifle de Asalto (Autofuego)')),
+('Rifle de Precisión',   5, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Rifle de Francotirador'), NULL),
+('Rifle de francotirador', 5, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Rifle de Francotirador'), NULL),
+('Lanzagranadas',        6, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Lanzagranadas'), NULL), 
+('Lanzamisiles',         8, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Lanzamisiles'), NULL),
+('Arma cac (Media)',     2, NULL, NULL),
+('Arma cac (Pesada)',    3, NULL, NULL),
+('Arma cac (Muy pesada)', 4, NULL, NULL),
+('Granada estándar',     6, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Lanzamiento'), NULL),
+('Granada de humo',      0, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Lanzamiento'), NULL),
+('Granada aturdidora',   0, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Lanzamiento'), NULL),
+('Granada incendiaria',  6, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Lanzamiento'), NULL);
 
 -- D. ASIGNACIÓN PROPIEDADES A ARMAS
 INSERT INTO armas_propiedades (id_plantilla, id_propiedad) VALUES 
@@ -272,12 +132,7 @@ INSERT INTO jugadores (nombre, max_hp, hp, max_body_sp, body_sp, max_head_sp, he
 ('Tank', 60, 60, 4, 4, 4, 4, 6, 6, 6),
 ('Samurai', 45, 45, 7, 7, 7, 7, 4, 4, 8);
 
--- B. ARMAS DE JUGADORES
-INSERT INTO inventario_jugadores (id_jugador, id_plantilla, balas_actuales) VALUES 
-((SELECT id_jugador FROM jugadores WHERE nombre = 'Gunslinger'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola muy pesada'), (SELECT max_balas FROM plantillas_armas WHERE nombre = 'Pistola muy pesada')),
-((SELECT id_jugador FROM jugadores WHERE nombre = 'Gunslinger'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Rifle de Precisión'), (SELECT max_balas FROM plantillas_armas WHERE nombre = 'Rifle de Precisión')),
-((SELECT id_jugador FROM jugadores WHERE nombre = 'Tank'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Escopeta'), (SELECT max_balas FROM plantillas_armas WHERE nombre = 'Escopeta'))
-;
+-- SE ELIMINÓ: B. ARMAS DE JUGADORES (inventario_jugadores)
 
 -- C. NPCs: MAELSTROM
 INSERT INTO npc (nombre, tier, faccion, max_hp, max_body_sp, max_head_sp, max_move, base_combate, base_iniciativa) VALUES 
@@ -299,3 +154,65 @@ INSERT INTO npc_buffos (id_npc, id_buffo) VALUES
 ((SELECT id_npc FROM npc WHERE nombre = 'Maelstrom Veteran'), (SELECT id_buffo FROM buffos WHERE nombre = 'Luz tenue / IR / UV')),
 ((SELECT id_npc FROM npc WHERE nombre = 'Maelstrom Veteran'), (SELECT id_buffo FROM buffos WHERE nombre = 'Editor de dolor')),
 ((SELECT id_npc FROM npc WHERE nombre = 'Maelstrom Veteran'), (SELECT id_buffo FROM buffos WHERE nombre = 'Shock Absorber'));
+
+
+/* ==============================================================================
+ ADAM SMASHER
+============================================================================== */
+
+INSERT INTO npc (
+    nombre, 
+    tier, 
+    faccion, 
+    max_hp, 
+    max_body_sp, 
+    max_head_sp, 
+    max_move, 
+    base_combate, 
+    base_iniciativa
+) VALUES (
+    'Adam Smasher', 
+    4,            -- Tier 4 (Nivel de Jefe/Leyenda máxima)
+    NULL,         -- NULL para que tu programa muestre su nombre real a los jugadores
+    75,           -- HP exacto de la ficha
+    18,           -- SP del Cuerpo (Adam Smasher's Plating)
+    18,           -- SP de la Cabeza (Adam Smasher's Plating)
+    8,            -- STAT MOVE
+    18,           -- Base de combate (Brawling, Heavy Weapons, Autofire... todas son 18)
+    17            -- Iniciativa (Ref 8 + 9)
+);
+
+/* ==============================================================================
+   ARMAMENTO EXCLUSIVO DE ADAM SMASHER
+============================================================================== */
+
+-- 1. Crear las armas únicas de Smasher en las plantillas (Sin max_balas)
+INSERT INTO plantillas_armas (nombre, dados_dano, id_dv_estandar, id_dv_autofuego) VALUES 
+('Puños de Adam Smasher', 5, NULL, NULL),
+('Lanzacohetes de Hombro', 9, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Lanzamisiles'), NULL),
+('Autoescopeta Integrada', 6, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Escopetas'), NULL),
+('Ametralladora Rotatoria', 5, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Rifle de Asalto'), (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Rifle de Asalto (Autofuego)'));
+
+-- 2. Asignar las propiedades mortales a estas armas
+INSERT INTO armas_propiedades (id_plantilla, id_propiedad) VALUES 
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Lanzacohetes de Hombro'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Explosivo')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Autoescopeta Integrada'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Cartucho de Escopeta')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Ametralladora Rotatoria'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Disparo Automático (5)'));
+
+-- 3. Equipar el arsenal al jefe
+INSERT INTO npc_armas (id_npc, id_plantilla) VALUES 
+((SELECT id_npc FROM npc WHERE nombre = 'Adam Smasher'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Puños de Adam Smasher')),
+((SELECT id_npc FROM npc WHERE nombre = 'Adam Smasher'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Lanzacohetes de Hombro')),
+((SELECT id_npc FROM npc WHERE nombre = 'Adam Smasher'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Autoescopeta Integrada')),
+((SELECT id_npc FROM npc WHERE nombre = 'Adam Smasher'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Ametralladora Rotatoria'));
+
+/* ==============================================================================
+   CIBERWARE / BUFFOS DE ADAM SMASHER
+============================================================================== */
+
+-- Instalar el Ciberware que ya tienes en tu base de datos y que coincide con su ficha
+INSERT INTO npc_buffos (id_npc, id_buffo) VALUES 
+((SELECT id_npc FROM npc WHERE nombre = 'Adam Smasher'), (SELECT id_buffo FROM buffos WHERE nombre = 'Sandevistan')),
+((SELECT id_npc FROM npc WHERE nombre = 'Adam Smasher'), (SELECT id_buffo FROM buffos WHERE nombre = 'Berserk Implant')),
+((SELECT id_npc FROM npc WHERE nombre = 'Adam Smasher'), (SELECT id_buffo FROM buffos WHERE nombre = 'Self-ICE')),
+((SELECT id_npc FROM npc WHERE nombre = 'Adam Smasher'), (SELECT id_buffo FROM buffos WHERE nombre = 'Cyberskull'));

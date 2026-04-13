@@ -49,18 +49,6 @@ def ajustar_atributo_simple(personaje_obj, atributo, cantidad):
     """Modifica atributos numéricos simples (Ej. penalización de muerte)."""
     personaje_obj.modificar_atributo_simple(atributo, cantidad)
 
-def ajustar_municion_arma(personaje_obj, nombre_arma, cantidad):
-    """Suma o resta munición a un arma específica."""
-    if hasattr(personaje_obj, "armas") and nombre_arma in personaje_obj.armas:
-        arma = personaje_obj.armas[nombre_arma]
-        arma["actual"] = max(0, min(arma["actual"] + cantidad, arma["max"]))
-
-def recargar_arma_maxima(personaje_obj, nombre_arma):
-    """Restaura la munición al máximo."""
-    if hasattr(personaje_obj, "armas") and nombre_arma in personaje_obj.armas:
-        arma = personaje_obj.armas[nombre_arma]
-        arma["actual"] = arma["max"]
-
 def resetear_personaje_logico(personaje_obj):
     """Restaura todos los atributos del modelo a sus valores máximos/iniciales."""
     personaje_obj.hp = personaje_obj.max_hp
@@ -72,10 +60,6 @@ def resetear_personaje_logico(personaje_obj):
     
     if hasattr(personaje_obj, "debufos_permanentes_ids"):
         personaje_obj.debufos_permanentes_ids.clear()
-            
-    if hasattr(personaje_obj, "armas"):
-        for nombre_arma, datos in personaje_obj.armas.items():
-            datos["actual"] = datos["max"]
 
 
 # =============================================================================
