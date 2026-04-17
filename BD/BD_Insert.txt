@@ -24,73 +24,117 @@ INSERT INTO propiedades_armas (nombre, descripcion) VALUES
 ('Disparo Automático (4)', 'Permite multiplicar el daño base con un máximo de 4.'),
 ('Disparo Automático (5)', 'Permite multiplicar el daño base con un máximo de 5.'),
 ('Cartucho de Escopeta', 'Área de 3x3 casillas vs DV 13.'),
-('Explosivo', 'Daño 6d6. Al penetrar armadura, reduce 2 puntos de SP en lugar de 1.'),
+('Granada Explosiva', 'Daño 6d6. Al penetrar armadura, reduce 2 puntos de SP en lugar de 1.'),
 ('Granada de Humo', 'Área (5x5 casillas) por 1 min. Bloquea visión. Penalizador -4 a toda acción dentro de la nube.'),
 ('Granada Aturdidora', 'Sin daño directo. Objetivo debe superar Resistir Tortura/Drogas DV 15 o sufre Ojo/Oído Dañado.'),
 ('Efecto Incendiario', 'El objetivo arde (Fuego Mortal). Apagarse requiere 1 Acción Completa.'),
-('Misil', 'Daño 8d6. Al penetrar armadura, reduce 2 puntos de SP en lugar de 1.'),
 ('Disparo Letal', 'Al realizar un Disparo Apuntado, el arma añade +1d6 adicional a su daño base para ese ataque.'),
-('Fuego de Supresión', 'Permite usar la acción de Fuego de Supresión para obligar a los enemigos a cubrirse.'),
-('Óptica Precisa', 'El arma otorga un bono de +1 a todas las tiradas de ataque en un Disparo Apuntado.');
+('Óptica Precisa', 'El arma otorga un bono de +1 a todas las tiradas de ataque en un Disparo Apuntado.'),
+('Arma Power', 'Críticos hacen +5 de daño extra. Disparo de Rebote: -4 al ataque (si es apuntado, ignora el -4 y solo aplica el del apuntado).'),
+('Arma Smart', 'Requiere Enlace Personal. +1 a todas las tiradas de ataque. Ignora oscuridad/humo/niebla.'),
+('Arma Tech', 'Carga (Sacrifica Acción de Movimiento): El disparo pasa a CdT 1, ignora mitad de armadura (1/2 SP) y atraviesa coberturas delgadas.');
 
--- C. PLANTILLAS DE ARMAS (Sin max_balas)
+-- C. PLANTILLAS DE ARMAS
 INSERT INTO plantillas_armas (nombre, dados_dano, id_dv_estandar, id_dv_autofuego) VALUES 
-('Pistola mediana',      2, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Pistolas'), NULL), 
-('Pistola pesada',       3, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Pistolas'), NULL),
-('Pistola muy pesada',   4, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Pistolas'), NULL),
-('SMG',                  3, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'SMG'), (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'SMG (Autofuego)')),
-('Escopeta',             5, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Escopetas'), NULL),
-('Rifle de asalto',      5, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Rifle de Asalto'), (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Rifle de Asalto (Autofuego)')),
-('Rifle de Precisión',   5, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Rifle de Francotirador'), NULL),
-('Rifle de francotirador', 5, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Rifle de Francotirador'), NULL),
-('Lanzagranadas',        6, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Lanzagranadas'), NULL), 
-('Lanzamisiles',         8, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Lanzamisiles'), NULL),
-('Arma cac (Media)',     2, NULL, NULL),
-('Arma cac (Pesada)',    3, NULL, NULL),
+('Pistola mediana (Power)', 2, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Pistolas'), NULL), 
+('Pistola mediana (Tech)',  2, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Pistolas'), NULL), 
+('Pistola mediana (Smart)', 2, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Pistolas'), NULL), 
+('Pistola pesada (Power)',  3, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Pistolas'), NULL),
+('Pistola pesada (Tech)',   3, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Pistolas'), NULL),
+('Pistola pesada (Smart)',  3, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Pistolas'), NULL),
+('Pistola muy pesada (Power)', 4, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Pistolas'), NULL),
+('Pistola muy pesada (Tech)',  4, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Pistolas'), NULL),
+('SMG (Power)', 3, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'SMG'), (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'SMG (Autofuego)')),
+('SMG (Smart)', 3, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'SMG'), (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'SMG (Autofuego)')),
+('Escopeta (Power)', 5, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Escopetas'), NULL),
+('Escopeta (Tech)',  5, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Escopetas'), NULL),
+('Escopeta (Smart)', 5, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Escopetas'), NULL),
+('Rifle de asalto (Power)', 5, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Rifle de Asalto'), (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Rifle de Asalto (Autofuego)')),
+('Rifle de Precisión (Power)', 5, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Rifle de Francotirador'), NULL),
+('Rifle de Precisión (Tech)',  5, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Rifle de Francotirador'), NULL),
+('Rifle de francotirador (Power)', 5, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Rifle de Francotirador'), NULL),
+('Rifle de francotirador (Tech)',  5, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Rifle de Francotirador'), NULL),
+('Rifle de francotirador (Smart)', 5, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Rifle de Francotirador'), NULL),
+('Lanzagranadas (Smart)', 6, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Lanzagranadas'), NULL), 
+('Lanzamisiles (Smart)',  8, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Lanzamisiles'), NULL),
+('Arma cac (Media)',      2, NULL, NULL),
+('Arma cac (Pesada)',     3, NULL, NULL),
 ('Arma cac (Muy pesada)', 4, NULL, NULL),
-('Granada estándar',     6, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Lanzamiento'), NULL),
-('Granada de humo',      0, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Lanzamiento'), NULL),
-('Granada aturdidora',   0, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Lanzamiento'), NULL),
-('Granada incendiaria',  6, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Lanzamiento'), NULL);
+('Granada estándar',      6, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Lanzamiento'), NULL),
+('Granada de humo',       0, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Lanzamiento'), NULL),
+('Granada aturdidora',    0, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Lanzamiento'), NULL),
+('Granada incendiaria',   6, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Lanzamiento'), NULL);
 
 -- D. ASIGNACIÓN PROPIEDADES A ARMAS
 INSERT INTO armas_propiedades (id_plantilla, id_propiedad) VALUES 
-((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola muy pesada'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Disparo Letal')),
-((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'SMG'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Disparo Automático (3)')),
-((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'SMG'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Fuego de Supresión')),
-((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Escopeta'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Cartucho de Escopeta')),
-((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Rifle de asalto'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Disparo Automático (4)')),
-((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Rifle de asalto'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Fuego de Supresión')),
-((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Rifle de Precisión'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Disparo Letal')),
-((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Rifle de francotirador'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Disparo Letal')),
-((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Rifle de francotirador'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Óptica Precisa')),
-((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Lanzagranadas'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Explosivo')),
-((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Lanzamisiles'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Misil')),
-((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Granada estándar'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Explosivo')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola mediana (Power)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Arma Power')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola mediana (Tech)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Arma Tech')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola mediana (Smart)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Arma Smart')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola pesada (Power)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Arma Power')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola pesada (Tech)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Arma Tech')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola pesada (Smart)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Arma Smart')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola muy pesada (Power)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Disparo Letal')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola muy pesada (Power)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Arma Power')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola muy pesada (Tech)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Disparo Letal')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola muy pesada (Tech)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Arma Tech')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'SMG (Power)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Disparo Automático (3)')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'SMG (Power)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Arma Power')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'SMG (Smart)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Disparo Automático (3)')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'SMG (Smart)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Arma Smart')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Escopeta (Power)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Cartucho de Escopeta')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Escopeta (Power)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Arma Power')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Escopeta (Tech)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Cartucho de Escopeta')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Escopeta (Tech)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Arma Tech')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Escopeta (Smart)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Cartucho de Escopeta')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Escopeta (Smart)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Arma Smart')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Rifle de asalto (Power)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Disparo Automático (4)')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Rifle de asalto (Power)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Arma Power')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Rifle de Precisión (Power)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Disparo Letal')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Rifle de Precisión (Power)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Arma Power')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Rifle de Precisión (Tech)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Disparo Letal')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Rifle de Precisión (Tech)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Arma Tech')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Rifle de francotirador (Power)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Disparo Letal')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Rifle de francotirador (Power)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Óptica Precisa')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Rifle de francotirador (Power)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Arma Power')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Rifle de francotirador (Tech)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Disparo Letal')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Rifle de francotirador (Tech)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Óptica Precisa')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Rifle de francotirador (Tech)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Arma Tech')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Rifle de francotirador (Smart)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Disparo Letal')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Rifle de francotirador (Smart)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Óptica Precisa')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Rifle de francotirador (Smart)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Arma Smart')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Lanzagranadas (Smart)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Arma Smart')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Lanzamisiles (Smart)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Arma Smart')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Granada estándar'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Granada Explosiva')),
 ((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Granada de humo'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Granada de Humo')),
 ((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Granada aturdidora'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Granada Aturdidora')),
 ((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Granada incendiaria'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Efecto Incendiario'));
 
--- E. CATÁLOGO DE BUFFOS (MEJORAS)
+-- E. CROMO PURAMENTE DE COMBATE
 INSERT INTO buffos (nombre, descripcion) VALUES 
-('Kerenzikov', 'Permite esquivar ataques a distancia.'),
-('Sandevistan', 'Actívalo para añadir +3 a Iniciativa durante 1 combate. Si se activa estando ya en combate, aumenta 3 puntos la Iniciativa actual. Reutilizable tras 24 horas.'),
-('Berserk Implant', 'Actívalo para ignorar los efectos de Herido Grave o Mortal durante 1 combate. Si estás Mortalmente Herido, aún debes realizar la Tirada de Salvación contra la muerte como es habitual. Reutilizable tras 24 horas.'),
-('Self-ICE', 'Protección contra quickhacks. Cada instalación añade un +1 a la dv de que el netruner debe superar para un quickhack. Máximo 3 instalaciones.'),
-('Sistema de puntería', '+1 a tiros de precisión.'),
+('Sistema de puntería', '+1 a tiradas en Disparos Apuntados.'),
 ('Kiroshi "Stalker"', '+1 a tiradas de ataque al usar Fuego Automático.'),
-('Luz tenue / IR / UV', 'Elimina penalizaciones por oscuridad, humo o niebla.'),
-('Trauma Response Nanomatrix', 'Regenera completamente Cyberware que otorga SP a su máximo. Reutilizable tras 24 horas.'),
-('Microrotors', 'Mejora el control muscular fino; otorga +1 a Brawling, Melee Weapons y Martial Arts.'),
-('Cyberskull', 'Inmune al multiplicador de daño por disparos a la cabeza, inmune a lesiones críticas de "Mandíbula rota" y "Cráneo fracturado".'),
-('Editor de dolor', 'Ignora el estado gravemente herido.'),
-('Shock-n-Awe', 'Malla eléctrica subcutánea. Cualquier enemigo que te impacte con un ataque Cuerpo a Cuerpo (Pelea, Artes Marciales o Armas CC) sufre automáticamente 2 puntos de daño directo a sus PV.'),
-('Nano-Plating', 'Revestimiento de nanocarbono a nivel celular. Reduce en 1 todo el daño entrante que no sea directo.'),
-('ProxiShield', 'Escudo cinético reactivo. Reduce en 2 el daño de cualquier ataque originado a 2 metros o menos de distancia.'),
-('RangeGuard', 'Malla balística de disipación térmica. Reduce en 2 el daño de cualquier ataque a distancia originado a 25 metros o más.'),
-('Shock Absorber', 'Añade +1 a chequeos de Fuego automático o Fuego supresivo. Se puede instalar 1 por brazo.'),
-('Jenkins'' Tendons', 'Fibras musculares sintéticas de contracción rápida. Al usar la acción de Correr, obtienes +4 casillas (puntos de MOV) adicionales de movimiento.'),
-('Fortified Ankles', 'Articulaciones cinéticas y tendones de titanio. Ignoras cualquier penalización de movimiento al saltar.');
+('Shock Absorber', '+1 a chequeos de Fuego Automático o Fuego de Supresión.'),
+('Enlace Inteligente (Smartlink)', 'Si falla un disparo por 5 o menos, tira 1d10 + 14 para reintentar el impacto.'),
+('Coprocesador Balístico', '+2 a la tirada de ataque al realizar un disparo de rebote (con Armas Power).'),
+('Microrotores', '+1 a tiradas de Pelea, Armas CC y Artes Marciales.'),
+('Médula Densa', 'Su CUERPO cuenta como +4 (máx 12) para calcular daño cuerpo a cuerpo.'),
+('Pistones de Combate', 'Sus ataques de Artes Marciales hacen daño como si tuviera CUERPO 11 (4d6).'),
+('Mantis Blades / Monowire', 'Arma CC Pesada/Excelente oculta. El Monowire ignora SP inferior a 11. Se despliegan sin acción.'),
+('Gorilla Arms', 'Arma CC. Fija el BODY en 11 para daño cuerpo a cuerpo y destruir coberturas.'),
+('Lanzaproyectiles', 'Lanzagranadas o Lanzamisiles integrado en el brazo. Se despliega sin gastar acción.'),
+('Firebreather', 'Lanzallamas en la garganta. Inflige el estado Fuego Mortal a corta distancia.'),
+('Sandevistan', '+3 a la Tirada de Iniciativa.'),
+('Kerenzikov', 'Permite esquivar ataques a distancia (balas).'),
+('Luz tenue / IR / UV', 'Ignora por completo las penalizaciones por oscuridad, niebla o Granadas de Humo.'),
+('Protección Antideslumbrante', 'Inmune a los efectos de las Granadas Aturdidoras.'),
+('Escudo Oculto', 'Despliega un escudo antibalas desde el brazo como acción libre.'),
+('Self-ICE', 'Añade +1 a la dificultad (DV) de cualquier Quickhack que intente el Netrunner del grupo.'),
+('Cyberskull', 'Inmune al multiplicador de daño por disparos a la cabeza (x2 o x4 no aplican).'),
+('Editor de Dolor / Berserk', 'Ignora completamente el penalizador de -2 a todas las acciones por Herida Grave.'),
+('Segundo Corazón', 'La primera vez que cae a Mortalmente Herido, lo evita y recupera HP igual a su stat CUERPO.'),
+('Shock-n-Awe', 'Malla eléctrica. Enemigos que le impacten cuerpo a cuerpo sufren 2 de daño directo automáticamente.'),
+('Armazón Lineal (Sigma/Beta)', 'Exoesqueleto interno. Fija el CUERPO en 12 o 14 (Aumenta el daño cuerpo a cuerpo brutalmente).'),
+('Blindaje Subdérmico Pesado', 'Otorga SP 11 (Armadura natural) en cuerpo y cabeza, pero impone -1 a REF, DEX y MOV.');
 
 -- F. CATÁLOGO DE ESTADOS (DEBUFFOS TEMPORALES Y PERMANENTES)
 INSERT INTO catalogo_debuffos (nombre, descripcion, tipo, remedio_rapido, tratamiento) VALUES 
@@ -123,96 +167,35 @@ INSERT INTO catalogo_debuffos (nombre, descripcion, tipo, remedio_rapido, tratam
 
 
 /* ==============================================================================
-   FASE 3: POBLADO DE ENTIDADES (JUGADORES Y NPCs)
+   FASE 3: POBLADO DE ENTIDADES (JUGADORES Y NPCs MODULARES)
 ============================================================================== */
 
--- A. JUGADORES
+-- A. JUGADOR POR DEFAULT
 INSERT INTO jugadores (nombre, max_hp, hp, max_body_sp, body_sp, max_head_sp, head_sp, max_luck, luck, max_move) VALUES 
-('Gunslinger', 45, 45, 4, 4, 4, 4, 4, 4, 6),
-('Tank', 60, 60, 4, 4, 4, 4, 6, 6, 6),
-('Samurai', 45, 45, 7, 7, 7, 7, 4, 4, 8);
+('Dante', 45, 45, 4, 4, 4, 4, 4, 4, 6);
 
--- SE ELIMINÓ: B. ARMAS DE JUGADORES (inventario_jugadores)
+-- B. UN ÚNICO NPC DUMMY (SISTEMA MODULAR: CHASIS + FACCIÓN)
 
--- C. NPCs: MAELSTROM
-INSERT INTO npc (nombre, tier, faccion, max_hp, max_body_sp, max_head_sp, max_move, base_combate, base_iniciativa) VALUES 
-('Maelstrom Ganger', 1, 'Maelstrom', 25, 4, 4, 6, 9, 5),
-('Maelstrom Veteran', 2, 'Maelstrom', 35, 4, 4, 6, 11, 7),
-('Maelstrom Elite', 3, 'Maelstrom', 45, 7, 7, 7, 13, 8);
+-- 1. Crear el Chasis del Dummy
+INSERT INTO npc_base (nombre, tier, max_hp, max_body_sp, max_head_sp, max_move, base_combate, base_iniciativa) VALUES 
+('Dummy Chasis (Tier 1)', 1, 25, 4, 4, 6, 10, 4);
 
--- D. ARMAS DE NPCs
-INSERT INTO npc_armas (id_npc, id_plantilla) VALUES 
-((SELECT id_npc FROM npc WHERE nombre = 'Maelstrom Ganger'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola mediana')),
-((SELECT id_npc FROM npc WHERE nombre = 'Maelstrom Ganger'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Arma cac (Media)')),
-((SELECT id_npc FROM npc WHERE nombre = 'Maelstrom Veteran'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola pesada')),
-((SELECT id_npc FROM npc WHERE nombre = 'Maelstrom Veteran'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'SMG')),
-((SELECT id_npc FROM npc WHERE nombre = 'Maelstrom Veteran'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Arma cac (Pesada)'));
+-- 2. Crear la Facción del Dummy
+INSERT INTO npc_faccion (nombre) VALUES 
+('Facción de Prueba');
 
--- E. BUFFOS DE NPCs
-INSERT INTO npc_buffos (id_npc, id_buffo) VALUES 
-((SELECT id_npc FROM npc WHERE nombre = 'Maelstrom Ganger'), (SELECT id_buffo FROM buffos WHERE nombre = 'Luz tenue / IR / UV')),
-((SELECT id_npc FROM npc WHERE nombre = 'Maelstrom Veteran'), (SELECT id_buffo FROM buffos WHERE nombre = 'Luz tenue / IR / UV')),
-((SELECT id_npc FROM npc WHERE nombre = 'Maelstrom Veteran'), (SELECT id_buffo FROM buffos WHERE nombre = 'Editor de dolor')),
-((SELECT id_npc FROM npc WHERE nombre = 'Maelstrom Veteran'), (SELECT id_buffo FROM buffos WHERE nombre = 'Shock Absorber'));
-
-
-/* ==============================================================================
- ADAM SMASHER
-============================================================================== */
-
-INSERT INTO npc (
-    nombre, 
-    tier, 
-    faccion, 
-    max_hp, 
-    max_body_sp, 
-    max_head_sp, 
-    max_move, 
-    base_combate, 
-    base_iniciativa
-) VALUES (
-    'Adam Smasher', 
-    4,            -- Tier 4 (Nivel de Jefe/Leyenda máxima)
-    NULL,         -- NULL para que tu programa muestre su nombre real a los jugadores
-    75,           -- HP exacto de la ficha
-    18,           -- SP del Cuerpo (Adam Smasher's Plating)
-    18,           -- SP de la Cabeza (Adam Smasher's Plating)
-    8,            -- STAT MOVE
-    18,           -- Base de combate (Brawling, Heavy Weapons, Autofire... todas son 18)
-    17            -- Iniciativa (Ref 8 + 9)
+-- 3. Asignar 1 Arma a la Facción (Vinculada al Tier 1)
+INSERT INTO faccion_armas (id_faccion, id_plantilla, tier_exacto) VALUES 
+(
+  (SELECT id_faccion FROM npc_faccion WHERE nombre = 'Facción de Prueba'), 
+  (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola mediana (Power)'), 
+  1 -- Tier Exacto
 );
 
-/* ==============================================================================
-   ARMAMENTO EXCLUSIVO DE ADAM SMASHER
-============================================================================== */
-
--- 1. Crear las armas únicas de Smasher en las plantillas (Sin max_balas)
-INSERT INTO plantillas_armas (nombre, dados_dano, id_dv_estandar, id_dv_autofuego) VALUES 
-('Puños de Adam Smasher', 5, NULL, NULL),
-('Lanzacohetes de Hombro', 9, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Lanzamisiles'), NULL),
-('Autoescopeta Integrada', 6, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Escopetas'), NULL),
-('Ametralladora Rotatoria', 5, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Rifle de Asalto'), (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Rifle de Asalto (Autofuego)'));
-
--- 2. Asignar las propiedades mortales a estas armas
-INSERT INTO armas_propiedades (id_plantilla, id_propiedad) VALUES 
-((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Lanzacohetes de Hombro'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Explosivo')),
-((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Autoescopeta Integrada'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Cartucho de Escopeta')),
-((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Ametralladora Rotatoria'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Disparo Automático (5)'));
-
--- 3. Equipar el arsenal al jefe
-INSERT INTO npc_armas (id_npc, id_plantilla) VALUES 
-((SELECT id_npc FROM npc WHERE nombre = 'Adam Smasher'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Puños de Adam Smasher')),
-((SELECT id_npc FROM npc WHERE nombre = 'Adam Smasher'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Lanzacohetes de Hombro')),
-((SELECT id_npc FROM npc WHERE nombre = 'Adam Smasher'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Autoescopeta Integrada')),
-((SELECT id_npc FROM npc WHERE nombre = 'Adam Smasher'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Ametralladora Rotatoria'));
-
-/* ==============================================================================
-   CIBERWARE / BUFFOS DE ADAM SMASHER
-============================================================================== */
-
--- Instalar el Ciberware que ya tienes en tu base de datos y que coincide con su ficha
-INSERT INTO npc_buffos (id_npc, id_buffo) VALUES 
-((SELECT id_npc FROM npc WHERE nombre = 'Adam Smasher'), (SELECT id_buffo FROM buffos WHERE nombre = 'Sandevistan')),
-((SELECT id_npc FROM npc WHERE nombre = 'Adam Smasher'), (SELECT id_buffo FROM buffos WHERE nombre = 'Berserk Implant')),
-((SELECT id_npc FROM npc WHERE nombre = 'Adam Smasher'), (SELECT id_buffo FROM buffos WHERE nombre = 'Self-ICE')),
-((SELECT id_npc FROM npc WHERE nombre = 'Adam Smasher'), (SELECT id_buffo FROM buffos WHERE nombre = 'Cyberskull'));
+-- 4. Asignar 1 Cromo a la Facción (Vinculada al Tier 1)
+INSERT INTO faccion_buffos (id_faccion, id_buffo, tier_exacto) VALUES 
+(
+  (SELECT id_faccion FROM npc_faccion WHERE nombre = 'Facción de Prueba'), 
+  (SELECT id_buffo FROM buffos WHERE nombre = 'Kerenzikov'), 
+  1 -- Tier Exacto
+);

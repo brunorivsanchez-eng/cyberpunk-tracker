@@ -72,10 +72,16 @@ class MainWindow(QMainWindow):
     # ==========================================
 
     def generar_npc_dinamico(self):
-        datos_bestiario = database.obtener_bestiario_completo()
-        if not datos_bestiario: return
+        # 1. Traemos las DOS listas modulares
+        lista_chasis = database.obtener_lista_chasis()
+        lista_facciones = database.obtener_lista_facciones()
 
-        dialogo = DialogoBestiario(datos_bestiario, self)
+        if not lista_chasis or not lista_facciones: 
+            print("Error: No se encontraron Chasis o Facciones en la base de datos.")
+            return
+
+        # 2. Pasamos ambas listas al diálogo
+        dialogo = DialogoBestiario(lista_chasis, lista_facciones, self)
         if dialogo.exec() != QDialog.DialogCode.Accepted:
             return
 
@@ -83,7 +89,7 @@ class MainWindow(QMainWindow):
         if not escuadra: return
 
         piscina_colores = [
-            ("#0000FF", "Azul"), ("#00FF00", "Verde"), ("#6A0101", "Rojo"), 
+            ("#0000FF", "Azul"), ("#00FF00", "Verde"), ("#E81111", "Rojo"), 
             ("#FFFF00", "Amarillo"), ("#FF00FF", "Morado"), ("#00FFFF", "Cian"),
             ("#FFA500", "Naranja"), ("#FFC0CB", "Rosa")
         ]
@@ -92,7 +98,8 @@ class MainWindow(QMainWindow):
 
         for lote in escuadra:
             for _ in range(lote['cantidad']):
-                nuevo_npc = database.instanciar_npc_dinamico(lote['id'])
+                # 3. Ensamblamos el NPC con los DOS IDs seleccionados
+                nuevo_npc = database.instanciar_npc_dinamico(lote['id_chasis'], lote['id_faccion'])
                 if not nuevo_npc: continue
 
                 if lote['es_jefe']:

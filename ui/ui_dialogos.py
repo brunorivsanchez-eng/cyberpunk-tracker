@@ -177,123 +177,119 @@ class DialogoAccionGlobal(DialogoBaseSeleccion):
         self.accept()
 
 # ==============================================================================
-# CONSTRUCTOR DE ENCUENTROS (BESTIARIO)
-# ==============================================================================
-# ==============================================================================
-# CONSTRUCTOR DE ENCUENTROS (BESTIARIO)
+# CONSTRUCTOR DE ENCUENTROS (BESTIARIO MODULAR)
 # ==============================================================================
 class DialogoBestiario(QDialog):
-    def __init__(self, datos_bestiario, parent=None):
+    def __init__(self, lista_chasis, lista_facciones, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Constructor de Encuentros Tácticos")
-        self.setFixedSize(850, 500)
+        self.setWindowTitle("Constructor de Encuentros Modulares")
+        # Hacemos la ventana más grande para que quepa la información cómodamente
+        self.setFixedSize(1000, 550) 
         self.setStyleSheet("background-color: #121212; color: white;")
-        self.datos = datos_bestiario
+        
+        self.lista_chasis = lista_chasis
+        self.lista_facciones = lista_facciones
         self.escuadra_preparada = [] 
 
         layout_principal = QHBoxLayout(self)
 
-        # --- COLUMNA 1: CATÁLOGO ---
+        # --- COLUMNA 1: CATÁLOGO DE CHASIS ---
         col1 = QVBoxLayout()
         self.input_busqueda = QLineEdit()
-        self.input_busqueda.setPlaceholderText("🔍 Buscar amenaza...")
+        self.input_busqueda.setPlaceholderText("🔍 Buscar chasis base...")
         self.input_busqueda.setStyleSheet("background-color: #1E1E1E; padding: 5px; border: 1px solid #333;")
         self.input_busqueda.textChanged.connect(self.filtrar_arbol)
         col1.addWidget(self.input_busqueda)
 
         self.arbol = QTreeWidget()
-        self.arbol.setHeaderLabels(["Catálogo", "Facción"])
+        self.arbol.setHeaderLabels(["Chasis Base"])
         self.arbol.header().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         self.arbol.setStyleSheet("QTreeWidget { background-color: #1A1A1A; border: 1px solid #333; }")
         self.arbol.itemSelectionChanged.connect(self.actualizar_vista_previa)
         col1.addWidget(self.arbol)
         layout_principal.addLayout(col1, 2)
 
-        # --- COLUMNA 2: CONFIGURACIÓN ---
+        # --- COLUMNA 2: CONFIGURACIÓN Y SUPER VISTA PREVIA ---
         col2 = QVBoxLayout()
         col2.setAlignment(Qt.AlignmentFlag.AlignTop)
         
+        # 1. Selector de Facción
+        col2.addWidget(QLabel("Facción / Loadout:"))
+        self.combo_faccion = QComboBox()
+        self.combo_faccion.setStyleSheet("""
+            QComboBox { background-color: #2C2C2C; border: 1px solid #555; padding: 5px; font-weight: bold;}
+            QComboBox::drop-down { border-left: 1px solid #555; }
+        """)
+        for faccion in self.lista_facciones:
+            self.combo_faccion.addItem(faccion['nombre'], userData=faccion['id_faccion'])
+        self.combo_faccion.currentIndexChanged.connect(self.actualizar_vista_previa)
+        col2.addWidget(self.combo_faccion)
+
+        # 2. Vista Previa Estilizada (Panel de Escaneo)
         self.frame_prev = QFrame()
-        self.frame_prev.setStyleSheet("background-color: #1E1E1E; border: 1px solid #444;")
+        self.frame_prev.setStyleSheet("background-color: #0A0A0A; border: 1px solid #00FFFF; border-radius: 5px; margin-top: 10px;")
         layout_prev = QVBoxLayout(self.frame_prev)
-        self.lbl_prev_nombre = QLabel("Seleccione objetivo...")
-        self.lbl_prev_nombre.setStyleSheet("font-size: 14px; font-weight: bold; color: #FF0000;")
-        self.lbl_prev_stats = QLabel("\nHP: --\nSP: --")
+        
+        self.lbl_prev_nombre = QLabel("--- ESCANER KIROSHI OFFLINE ---")
+        self.lbl_prev_nombre.setWordWrap(True)
+        self.lbl_prev_nombre.setStyleSheet("font-size: 14px; font-weight: bold; color: #00FFFF; border: none;")
+        
+        self.lbl_prev_stats = QLabel("\n\n")
+        self.lbl_prev_stats.setStyleSheet("font-family: 'Consolas'; color: #CCCCCC; border: none; font-size: 12px;")
+        
+        self.lbl_prev_equipo = QLabel("")
+        self.lbl_prev_equipo.setWordWrap(True)
+        self.lbl_prev_equipo.setStyleSheet("color: #FFA500; font-size: 11px; border: none; margin-top: 5px;")
+        
         layout_prev.addWidget(self.lbl_prev_nombre)
         layout_prev.addWidget(self.lbl_prev_stats)
+        layout_prev.addWidget(self.lbl_prev_equipo)
         col2.addWidget(self.frame_prev)
 
-        # --- CORRECCIÓN 3: Estilo del QSpinBox (Flechas de Cantidad) ---
+        # 3. Controles de Despliegue
+        fila_controles = QHBoxLayout()
         self.spin_cantidad = QSpinBox()
         self.spin_cantidad.setRange(1, 10)
         self.spin_cantidad.setStyleSheet("""
-            QSpinBox {
-                background-color: #2C2C2C;
-                color: white;
-                border: 1px solid #555;
-                padding: 4px;
-                font-weight: bold;
-                font-size: 14px;
-            }
-            QSpinBox::up-button, QSpinBox::down-button {
-                background-color: #444;
-                width: 20px;
-                border-left: 1px solid #222;
-            }
-            QSpinBox::up-button:hover, QSpinBox::down-button:hover {
-                background-color: #FF0000;
-            }
+            QSpinBox { background-color: #2C2C2C; color: white; border: 1px solid #555; padding: 4px; font-weight: bold; font-size: 14px; }
+            QSpinBox::up-button, QSpinBox::down-button { background-color: #444; width: 20px; border-left: 1px solid #222; }
+            QSpinBox::up-button:hover, QSpinBox::down-button:hover { background-color: #FF0000; }
         """)
         
-        # --- CORRECCIÓN 2: Estilo del Checkbox (Hacer visible la cajita) ---
-        self.chk_jefe = QCheckBox("Marcar como ☠️ Jefe")
+        self.chk_jefe = QCheckBox("☠️ Jefe")
         self.chk_jefe.setStyleSheet("""
-            QCheckBox {
-                color: #FF0000; 
-                font-weight: bold;
-                font-size: 12px;
-            }
-            QCheckBox::indicator {
-                width: 15px;
-                height: 15px;
-                border: 1px solid #888;
-                background: #2C2C2C;
-                border-radius: 3px;
-            }
-            QCheckBox::indicator:checked {
-                background: #FF0000;
-                border: 1px solid #FFF;
-            }
+            QCheckBox { color: #FF0000; font-weight: bold; font-size: 12px; margin-left: 10px;}
+            QCheckBox::indicator { width: 15px; height: 15px; border: 1px solid #888; background: #2C2C2C; border-radius: 3px; }
+            QCheckBox::indicator:checked { background: #FF0000; border: 1px solid #FFF; }
         """)
         
-        col2.addWidget(QLabel("Cantidad:"))
-        col2.addWidget(self.spin_cantidad)
-        col2.addWidget(self.chk_jefe)
-        col2.addStretch()
+        fila_controles.addWidget(QLabel("Cant:"))
+        fila_controles.addWidget(self.spin_cantidad)
+        fila_controles.addWidget(self.chk_jefe)
+        fila_controles.addStretch()
+        col2.addLayout(fila_controles)
 
+        # 4. Botón Agregar
         self.btn_add = QPushButton("➕ AÑADIR A ESCUADRA")
         self.btn_add.setEnabled(False)
         self.btn_add.setStyleSheet("""
-            QPushButton { background-color: #2E8B57; color: white; padding: 10px; font-weight: bold; }
+            QPushButton { background-color: #2E8B57; color: white; padding: 10px; font-weight: bold; margin-top: 10px;}
             QPushButton:hover { background-color: #3CB371; }
             QPushButton:disabled { background-color: #1A4D30; color: #555; }
         """)
         self.btn_add.clicked.connect(self.agregar_a_escuadra)
         col2.addWidget(self.btn_add)
-        layout_principal.addLayout(col2, 1)
+        layout_principal.addLayout(col2, 2) # Damos más espacio a la columna central
 
         # --- COLUMNA 3: CARRITO ---
         col3 = QVBoxLayout()
         self.lista_ui = QListWidget()
         self.lista_ui.setStyleSheet("background-color: #1A1A1A; border: 1px solid #555; font-size: 12px;")
-        
-        # Conectar la selección de la lista para activar el botón de eliminar
         self.lista_ui.itemSelectionChanged.connect(self.verificar_seleccion_carrito)
         
         col3.addWidget(QLabel("ESCUADRA LISTA:"))
         col3.addWidget(self.lista_ui)
 
-        # --- CORRECCIÓN 1: Botón para eliminar del carrito ---
         self.btn_eliminar_carrito = QPushButton("🗑️ Eliminar Seleccionado")
         self.btn_eliminar_carrito.setEnabled(False)
         self.btn_eliminar_carrito.setStyleSheet("""
@@ -320,11 +316,16 @@ class DialogoBestiario(QDialog):
     def _poblar_arbol(self):
         self.arbol.clear()
         tiers = {}
-        for npc in self.datos:
-            t = f"Tier {npc['tier']}"
-            if t not in tiers: tiers[t] = QTreeWidgetItem(self.arbol, [t])
-            h = QTreeWidgetItem(tiers[t], [npc['nombre'], npc['faccion']])
-            h.setData(0, Qt.ItemDataRole.UserRole, npc)
+        for chasis in self.lista_chasis:
+            t = f"Rango/Tier {chasis['tier']}"
+            if t not in tiers: 
+                tiers[t] = QTreeWidgetItem(self.arbol, [t])
+                # Colorear los Tiers para que sea más fácil leerlos
+                if chasis['tier'] == 3: tiers[t].setForeground(0, QColor("#FF4444"))
+                elif chasis['tier'] == 2: tiers[t].setForeground(0, QColor("#FFA500"))
+            
+            h = QTreeWidgetItem(tiers[t], [chasis['nombre']])
+            h.setData(0, Qt.ItemDataRole.UserRole, chasis)
         self.arbol.expandAll()
 
     def filtrar_arbol(self, texto):
@@ -333,58 +334,77 @@ class DialogoBestiario(QDialog):
         while it.value():
             item = it.value()
             if item.childCount() == 0:
-                coincide = texto in item.text(0).lower() or texto in item.text(1).lower()
+                coincide = texto in item.text(0).lower()
                 item.setHidden(not coincide)
                 if coincide and item.parent(): item.parent().setHidden(False)
             it += 1
 
     def actualizar_vista_previa(self):
+        """Muestra el escáner completo: Stats del Chasis + Equipo de la Facción."""
         items = self.arbol.selectedItems()
         if not items or items[0].childCount() > 0:
             self.btn_add.setEnabled(False)
+            self.lbl_prev_nombre.setText("--- ESCANER KIROSHI OFFLINE ---")
+            self.lbl_prev_stats.setText("\n\n")
+            self.lbl_prev_equipo.setText("")
             return
-        npc = items[0].data(0, Qt.ItemDataRole.UserRole)
-        self.lbl_prev_nombre.setText(npc['nombre'].upper())
-        self.lbl_prev_stats.setText(f"❤️ HP: {npc['hp']}\n🛡️ SP C: {npc['body']}\n🛡️ SP H: {npc['head']}")
+            
+        chasis = items[0].data(0, Qt.ItemDataRole.UserRole)
+        id_faccion = self.combo_faccion.currentData()
+        nombre_faccion = self.combo_faccion.currentText()
+        
+        # 1. Mostrar Stats Físicos (Del Chasis)
+        self.lbl_prev_nombre.setText(f"🎯 {nombre_faccion} ({chasis['nombre']})".upper())
+        
+        stats_texto = (
+            f"❤️ HP Máxima: {chasis['max_hp']} \n"
+            f"🛡️ SP Corporal: {chasis['max_body_sp']} | 🛡️ SP Cabeza: {chasis['max_head_sp']}\n"
+            f"⚔️ Base Ataque: {chasis['base_combate']} | ⚡ Iniciativa: {chasis['base_iniciativa']}\n"
+            f"👟 Movimiento: {chasis['max_move']} casillas"
+        )
+        self.lbl_prev_stats.setText(stats_texto)
+
+        # 2. Consultar el Equipo en tiempo real (De la Facción)
+        import database # Lo importamos aquí localmente para la consulta rápida
+        armas, cromo = database.obtener_preview_equipo(id_faccion, chasis['tier'])
+        
+        txt_armas = "🔫 ARMAS: " + (", ".join(armas) if armas else "Desarmado")
+        txt_cromo = "🦾 CROMO: " + (", ".join(cromo) if cromo else "Puro Carne")
+        
+        self.lbl_prev_equipo.setText(f"{txt_armas}\n\n{txt_cromo}")
+        
         self.btn_add.setEnabled(True)
 
     def agregar_a_escuadra(self):
         items = self.arbol.selectedItems()
         if not items: return
-        npc = items[0].data(0, Qt.ItemDataRole.UserRole)
-        cant, jefe = self.spin_cantidad.value(), self.chk_jefe.isChecked()
         
-        # Guardamos la data en la memoria de la clase
-        self.escuadra_preparada.append({"id": npc['id'], "nombre": npc['nombre'], "cantidad": cant, "es_jefe": jefe})
+        chasis = items[0].data(0, Qt.ItemDataRole.UserRole)
+        id_faccion = self.combo_faccion.currentData()
+        nombre_faccion = self.combo_faccion.currentText()
         
-        # Actualizamos la UI visualmente
-        self.lista_ui.addItem(f"{cant}x {npc['nombre']}" + (" [☠️]" if jefe else ""))
+        cant = self.spin_cantidad.value()
+        jefe = self.chk_jefe.isChecked()
         
-        # Habilitamos el botón de despliegue si hay al menos 1 elemento
-        if len(self.escuadra_preparada) > 0:
-            self.btn_desplegar.setEnabled(True)
+        nombre_compuesto = f"{nombre_faccion} ({chasis['nombre']})"
+        
+        self.escuadra_preparada.append({
+            "id_chasis": chasis['id_base'], 
+            "id_faccion": id_faccion,
+            "cantidad": cant, 
+            "es_jefe": jefe
+        })
+        
+        self.lista_ui.addItem(f"{cant}x {nombre_compuesto}" + (" [☠️]" if jefe else ""))
+        if len(self.escuadra_preparada) > 0: self.btn_desplegar.setEnabled(True)
 
     def verificar_seleccion_carrito(self):
-        """Activa o desactiva el botón de eliminar según si hay un elemento seleccionado en el carrito."""
-        if self.lista_ui.selectedItems():
-            self.btn_eliminar_carrito.setEnabled(True)
-        else:
-            self.btn_eliminar_carrito.setEnabled(False)
+        self.btn_eliminar_carrito.setEnabled(bool(self.lista_ui.selectedItems()))
 
     def eliminar_de_escuadra(self):
-        """Elimina el elemento seleccionado tanto de la UI como de la memoria del programa."""
-        items_seleccionados = self.lista_ui.selectedItems()
-        if not items_seleccionados: return
-        
-        item = items_seleccionados[0]
-        fila = self.lista_ui.row(item)
-        
-        # Eliminamos de la memoria interna
+        items = self.lista_ui.selectedItems()
+        if not items: return
+        fila = self.lista_ui.row(items[0])
         del self.escuadra_preparada[fila]
-        
-        # Eliminamos de la interfaz visual
         self.lista_ui.takeItem(fila)
-        
-        # Si el carrito se quedó vacío, bloqueamos el botón de desplegar
-        if len(self.escuadra_preparada) == 0:
-            self.btn_desplegar.setEnabled(False)
+        if len(self.escuadra_preparada) == 0: self.btn_desplegar.setEnabled(False)

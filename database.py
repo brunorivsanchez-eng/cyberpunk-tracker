@@ -9,7 +9,7 @@ from modelos import Personaje
 load_dotenv()
 
 # ==============================================================================
-# CONFIGURACIÓN DEL POOL DE CONEXIONES (Sustituye a conectar_bd)
+# CONFIGURACIÓN DEL POOL DE CONEXIONES 
 # ==============================================================================
 url_conexion = os.getenv("DATABASE_URL")
 
@@ -34,19 +34,17 @@ def cargar_partida_db():
     npcs_cargados = [] 
 
     try:
-        # Usamos el pool de conexiones. Se cierra/devuelve automáticamente al salir del bloque 'with'
         with db_pool.connection() as conexion:
             with conexion.cursor() as cursor:
                 cursor.execute("SELECT * FROM jugadores;")
                 filas_jugadores = cursor.fetchall()
 
                 for j in filas_jugadores:
-                    # Al no importar las armas de los jugadores, pasamos un diccionario vacío {}
+                    # Sin armas y sin death_penalty
                     pj = Personaje(
                         nombre=j['nombre'], max_hp=j['max_hp'], max_body_sp=j['max_body_sp'],
                         max_head_sp=j['max_head_sp'], max_luck=j['max_luck'], move=j['max_move'],
-                        armas={}, death_penalty=j['death_penalty'], 
-                        id_db=j['id_jugador'], es_npc=False
+                        armas={}, id_db=j['id_jugador'], es_npc=False
                     )
                     
                     pj.hp = j['hp']
@@ -81,14 +79,12 @@ def guardar_partida_db(pjs, npcs):
                     if getattr(p, 'id_db', None) is None:
                         continue
                     
-                    # 1. Guardar stats básicos
+                    # 1. Guardar stats básicos (ELIMINADO death_penalty)
                     cursor.execute("""
                         UPDATE jugadores 
-                        SET hp = %s, body_sp = %s, head_sp = %s, luck = %s, death_penalty = %s
+                        SET hp = %s, body_sp = %s, head_sp = %s, luck = %s
                         WHERE id_jugador = %s;
-                    """, (p.hp, p.body_sp, p.head_sp, p.luck, p.death_penalty, p.id_db))
-
-                    # Se eliminó el guardado de inventario porque las balas ya no existen y el equipo es estático
+                    """, (p.hp, p.body_sp, p.head_sp, p.luck, p.id_db))
                     
                     # 2. Guardar debuffos permanentes
                     cursor.execute("DELETE FROM jugadores_debuffos WHERE id_jugador = %s;", (p.id_db,))
@@ -126,54 +122,89 @@ def cargar_catalogos_debuffos():
         return [], []
 
 
-def obtener_bestiario_completo():
-    """Extrae todos los NPCs con sus metadatos para el Dialogo del Bestiario."""
-    if not db_pool: 
-        return []
-    
+# ==============================================================================
+# NUEVO SISTEMA: LISTAS DESPLEGABLES MODULARES Y VISTA PREVIA
+# ==============================================================================
+
+def obtener_lista_chasis():
+    """Extrae TODOS los datos de los chasis base para la vista previa."""
+    if not db_pool: return []
     try:
         with db_pool.connection() as conn:
             with conn.cursor() as cur:
-                cur.execute("""
-                    SELECT id_npc, nombre, tier, faccion, max_hp, max_body_sp, max_head_sp, max_move,
-                           base_combate, base_iniciativa
-                    FROM npc 
-                    ORDER BY tier ASC, faccion ASC, nombre ASC
-                """)
-                
-                bestiario = []
-                for fila in cur.fetchall():
-                    bestiario.append({
-                        "id": fila['id_npc'],
-                        "nombre": fila['nombre'],
-                        "tier": fila['tier'],
-                        "faccion": fila['faccion'],
-                        "hp": fila['max_hp'],
-                        "body": fila['max_body_sp'],
-                        "head": fila['max_head_sp'],
-                        "move": fila['max_move'],
-                        "base_combate": fila['base_combate'],
-                        "base_iniciativa": fila['base_iniciativa']
-                    })
-                return bestiario
+                # CAMBIO: Usamos SELECT * para traer HP, SP, Move, etc.
+                cur.execute("SELECT * FROM npc_base ORDER BY tier ASC, nombre ASC;")
+                return cur.fetchall()
     except Exception as e:
-        print(f"Error al obtener bestiario: {repr(e)}") 
+        print(f"Error al obtener chasis: {repr(e)}") 
         return []
 
+def obtener_lista_facciones():
+    """Extrae las facciones disponibles."""
+    if not db_pool: return []
+    try:
+        with db_pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT id_faccion, nombre FROM npc_faccion ORDER BY nombre ASC;")
+                return cur.fetchall()
+    except Exception as e:
+        print(f"Error al obtener facciones: {repr(e)}") 
+        return []
 
-def instanciar_npc_dinamico(id_npc):
-    """Construye un objeto Personaje aislado en memoria basado en una plantilla."""
+def obtener_preview_equipo(id_faccion, tier_exacto):
+    """Consulta rápida para previsualizar qué armas y cromo da una facción en un Tier específico."""
+    if not db_pool: return [], []
+    try:
+        with db_pool.connection() as conn:
+            with conn.cursor() as cur:
+                # Buscar Armas
+                cur.execute("""
+                    SELECT pa.nombre FROM faccion_armas fa
+                    JOIN plantillas_armas pa ON fa.id_plantilla = pa.id_plantilla
+                    WHERE fa.id_faccion = %s AND fa.tier_exacto = %s;
+                """, (id_faccion, tier_exacto))
+                armas = [row['nombre'] for row in cur.fetchall()]
+
+                # Buscar Cromo
+                cur.execute("""
+                    SELECT b.nombre FROM faccion_buffos fb
+                    JOIN buffos b ON fb.id_buffo = b.id_buffo 
+                    WHERE fb.id_faccion = %s AND fb.tier_exacto = %s;
+                """, (id_faccion, tier_exacto))
+                cromo = [row['nombre'] for row in cur.fetchall()]
+
+                return armas, cromo
+    except Exception as e:
+        print(f"Error al obtener preview de equipo: {e}")
+        return [], []
+# ==============================================================================
+# EL ENSAMBLADOR DE NPCs
+# ==============================================================================
+
+def instanciar_npc_dinamico(id_chasis, id_faccion):
+    """Construye un NPC uniendo las Stats del Chasis con el Equipo de la Facción según el Tier."""
     if not db_pool: 
         return None
     
     try:
         with db_pool.connection() as conexion:
             with conexion.cursor() as cursor:
-                cursor.execute("SELECT * FROM npc WHERE id_npc = %s;", (id_npc,))
-                n = cursor.fetchone()
-                if not n: return None
+                # 1. Traer los Stats del Chasis
+                cursor.execute("SELECT * FROM npc_base WHERE id_base = %s;", (id_chasis,))
+                chasis = cursor.fetchone()
+                if not chasis: return None
 
-                # NUEVA CONSULTA NPCs: Sin rastros de munición o balas
+                tier_npc = chasis['tier']
+
+                # 2. Traer el Nombre de la Facción
+                cursor.execute("SELECT nombre FROM npc_faccion WHERE id_faccion = %s;", (id_faccion,))
+                fac_db = cursor.fetchone()
+                nombre_faccion = fac_db['nombre'] if fac_db else "Independiente"
+
+                # Nombre compuesto final: ej. "Maelstrom (Veterano)"
+                nombre_final = f"{nombre_faccion} ({chasis['nombre']})"
+
+                # 3. Traer Armas de la Facción (Filtrando EXACTAMENTE por el tier_npc)
                 cursor.execute("""
                     SELECT pa.nombre, pa.dados_dano, pa.id_dv_estandar, pa.id_dv_autofuego,
                            COALESCE(string_agg(pr.descripcion, ' | '), '') as efecto,
@@ -181,17 +212,17 @@ def instanciar_npc_dinamico(id_npc):
                            dvs.dist_51_100m AS s_51_100, dvs.dist_101_200m AS s_101_200, dvs.dist_201_400m AS s_201_400, dvs.dist_401_800m AS s_401_800,
                            dva.dist_0_6m AS a_0_6, dva.dist_7_12m AS a_7_12, dva.dist_13_25m AS a_13_25, dva.dist_26_50m AS a_26_50, 
                            dva.dist_51_100m AS a_51_100, dva.dist_101_200m AS a_101_200, dva.dist_201_400m AS a_201_400, dva.dist_401_800m AS a_401_800
-                    FROM npc_armas na
-                    JOIN plantillas_armas pa ON na.id_plantilla = pa.id_plantilla
+                    FROM faccion_armas fa
+                    JOIN plantillas_armas pa ON fa.id_plantilla = pa.id_plantilla
                     LEFT JOIN armas_propiedades ap ON pa.id_plantilla = ap.id_plantilla
                     LEFT JOIN propiedades_armas pr ON ap.id_propiedad = pr.id_propiedad
                     LEFT JOIN dv_tablas dvs ON pa.id_dv_estandar = dvs.id_dv_tabla
                     LEFT JOIN dv_tablas dva ON pa.id_dv_autofuego = dva.id_dv_tabla
-                    WHERE na.id_npc = %s 
+                    WHERE fa.id_faccion = %s AND fa.tier_exacto = %s
                     GROUP BY pa.nombre, pa.dados_dano, pa.id_dv_estandar, pa.id_dv_autofuego,
                              dvs.dist_0_6m, dvs.dist_7_12m, dvs.dist_13_25m, dvs.dist_26_50m, dvs.dist_51_100m, dvs.dist_101_200m, dvs.dist_201_400m, dvs.dist_401_800m,
                              dva.dist_0_6m, dva.dist_7_12m, dva.dist_13_25m, dva.dist_26_50m, dva.dist_51_100m, dva.dist_101_200m, dva.dist_201_400m, dva.dist_401_800m;
-                """, (n['id_npc'],))
+                """, (id_faccion, tier_npc))
                 
                 dicc_armas = {}
                 for arma in cursor.fetchall():
@@ -210,32 +241,37 @@ def instanciar_npc_dinamico(id_npc):
                         "dv_valores_auto": dv_auto
                     }
 
+                # 4. Traer Cromo de la Facción (Filtrando EXACTAMENTE por el tier_npc)
                 cursor.execute("""
-                    SELECT b.nombre, b.descripcion FROM npc_buffos nb
-                    JOIN buffos b ON nb.id_buffo = b.id_buffo WHERE nb.id_npc = %s;
-                """, (n['id_npc'],))
+                    SELECT b.nombre, b.descripcion 
+                    FROM faccion_buffos fb
+                    JOIN buffos b ON fb.id_buffo = b.id_buffo 
+                    WHERE fb.id_faccion = %s AND fb.tier_exacto = %s;
+                """, (id_faccion, tier_npc))
                 
                 lista_mejoras = [{"nombre": b["nombre"], "descripcion": b["descripcion"]} for b in cursor.fetchall()]
 
+                # 5. Instanciar el Objeto Personaje (Sin death_penalty)
                 npc_obj = Personaje(
-                    nombre=n['nombre'], max_hp=n['max_hp'], max_body_sp=n['max_body_sp'],
-                    max_head_sp=n['max_head_sp'], max_luck=0, move=n['max_move'],
-                    armas=dicc_armas, death_penalty=0, mejoras=lista_mejoras, 
-                    id_db=n['id_npc'], es_npc=True
+                    nombre=nombre_final, max_hp=chasis['max_hp'], max_body_sp=chasis['max_body_sp'],
+                    max_head_sp=chasis['max_head_sp'], max_luck=0, move=chasis['max_move'],
+                    armas=dicc_armas, mejoras=lista_mejoras, 
+                    id_db=chasis['id_base'], es_npc=True
                 )
                 
-                npc_obj.hp = n['max_hp']
-                npc_obj.body_sp = n['max_body_sp']
-                npc_obj.head_sp = n['max_head_sp']
-                npc_obj.move = n['max_move']
+                npc_obj.hp = chasis['max_hp']
+                npc_obj.body_sp = chasis['max_body_sp']
+                npc_obj.head_sp = chasis['max_head_sp']
+                npc_obj.move = chasis['max_move']
                 
-                npc_obj.base_combate = n['base_combate']
-                npc_obj.base_iniciativa = n['base_iniciativa']
-                npc_obj.faccion = n['faccion']
+                npc_obj.base_combate = chasis['base_combate']
+                npc_obj.base_iniciativa = chasis['base_iniciativa']
+                npc_obj.faccion = nombre_faccion
                 
                 return npc_obj
+                
     except Exception as e:
-        print(f"Error al instanciar NPC {id_npc}: {e}")
+        print(f"Error Crítico al instanciar NPC Ensamblado: {e}")
         return None
     
 def cerrar_conexion_pool():

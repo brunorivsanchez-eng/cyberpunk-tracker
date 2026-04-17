@@ -56,7 +56,7 @@ def resetear_personaje_logico(personaje_obj):
     personaje_obj.head_sp = personaje_obj.max_head_sp
     personaje_obj.luck = personaje_obj.max_luck
     personaje_obj.move = personaje_obj.max_move
-    personaje_obj.death_penalty = 0
+    
     
     if hasattr(personaje_obj, "debufos_permanentes_ids"):
         personaje_obj.debufos_permanentes_ids.clear()

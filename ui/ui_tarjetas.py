@@ -96,7 +96,7 @@ class TarjetaBase(QFrame):
     def _aplicar_estilos_base(self): pass
     def _agregar_botones_cabecera(self, layout): pass
     def _agregar_botones_hp(self, layout): pass
-    def _agregar_elementos_col_der(self, layout): self._construir_fila_fuego(layout)
+    def _agregar_elementos_col_der(self, layout): pass
     def _agregar_columnas_extra(self, layout): pass
     def _obtener_color_identidad(self): return "#FFFFFF"
     
@@ -271,32 +271,6 @@ class TarjetaBase(QFrame):
         layout_stats.addStretch(1)
         
         self.layout_principal.addLayout(layout_stats)
-        
-    def _construir_fila_dr(self, layout):
-        fila = QHBoxLayout()
-        lbl = QLabel("🛡️ RED. DAÑO") 
-        lbl.setFixedWidth(85) 
-        lbl.setObjectName("LblStatTit") 
-        
-        valor_actual = getattr(self.personaje_obj, "reduccion_danio", 0)
-        input_dr = QLineEdit(str(valor_actual))
-        input_dr.setFixedWidth(40)
-        input_dr.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        input_dr.setStyleSheet("color: #FFA500; font-weight: bold; background-color: #000000; border: 1px solid #555;")
-        
-        def actualizar_modelo(texto):
-            if texto.isdigit():
-                self.personaje_obj.reduccion_danio = int(texto)
-            elif texto == "":
-                self.personaje_obj.reduccion_danio = 0
-                
-        input_dr.textChanged.connect(actualizar_modelo)
-        self.widgets_referencia["reduccion_danio"] = input_dr 
-        
-        fila.addWidget(lbl)
-        fila.addWidget(input_dr)
-        fila.addStretch(1)
-        layout.addLayout(fila)
 
     def _construir_fila_move(self, layout):
         fila = QHBoxLayout()
@@ -315,30 +289,6 @@ class TarjetaBase(QFrame):
 
     def _agregar_elementos_col_der(self, layout): 
         self._construir_fila_move(layout) 
-        self._construir_fila_dr(layout)   
-        self._construir_fila_fuego(layout) 
-
-    def _construir_fila_fuego(self, layout):
-        fila = QHBoxLayout()
-        lbl_fuego = QLabel("🔥 FIRE") 
-        lbl_fuego.setFixedWidth(85) 
-        lbl_fuego.setObjectName("LblFuegoTit") 
-
-        b5 = QPushButton("🔥")
-        b5.setFixedWidth(38)
-        b5.setObjectName("BtnFuego") 
-        b5.clicked.connect(lambda checked: self._ui_dano_fijo(5))
-
-        b10 = QPushButton("🔥🔥🔥")
-        b10.setFixedWidth(50)
-        b10.setObjectName("BtnFuego") 
-        b10.clicked.connect(lambda checked: self._ui_dano_fijo(10))
-
-        fila.addWidget(lbl_fuego)
-        fila.addWidget(b5)
-        fila.addWidget(b10)
-        fila.addStretch(1)
-        layout.addLayout(fila)
 
     def _construir_columna_armas(self):
         w = QWidget()
@@ -521,7 +471,6 @@ class TarjetaBase(QFrame):
         if "hp" in w: w["hp"].setValue(p.hp)
         for attr in ["body_sp", "head_sp", "luck"]:
             if attr in w: w[attr].setValue(getattr(p, attr))
-        if "death_penalty" in w: w["death_penalty"].setText(str(p.death_penalty))
 
         color_id = self._obtener_color_identidad()
         color_barra = "#FF0000" if p.hp <= (p.max_hp * 0.5) else color_id
@@ -563,7 +512,6 @@ class TarjetaBase(QFrame):
 
     def _ui_ajustar_stat(self, a, c): controlador.ajustar_stat_secundario(self.personaje_obj, a, c); self.sincronizar_interfaz()
     def _ui_ajustar_simple(self, a, c): controlador.ajustar_atributo_simple(self.personaje_obj, a, c); self.sincronizar_interfaz()
-    def _ui_dano_fijo(self, c): controlador.aplicar_dano_fijo(self.personaje_obj, c); self.sincronizar_interfaz()
     
     def _ui_ejecutar_disparo(self, nombre_arma, es_auto=False):
         import controlador 
@@ -678,30 +626,6 @@ class TarjetaJugador(TarjetaBase):
         btn_curar.setObjectName("BtnCurar") 
         btn_curar.clicked.connect(lambda checked: self._ui_procesar_curacion())
         layout.addWidget(btn_curar)
-
-    def _agregar_elementos_col_der(self, layout):
-        super()._agregar_elementos_col_der(layout)
-        
-        fila_death = QHBoxLayout()
-        lbl_tit = QLabel("💀☠️💀")
-        lbl_tit.setFixedWidth(85) 
-        lbl_tit.setObjectName("LblStatTit") 
-        
-        lbl_val = QLabel(str(self.personaje_obj.death_penalty))
-        lbl_val.setFixedWidth(25)
-        lbl_val.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lbl_val.setObjectName("ValorDeathPenalty") 
-        self.widgets_referencia["death_penalty"] = lbl_val
-        
-        b_menos = QPushButton("-"); b_menos.setFixedWidth(24); b_menos.setObjectName("BtnAjuste") 
-        b_menos.clicked.connect(lambda checked: self._ui_ajustar_simple("death_penalty", -1))
-        b_mas = QPushButton("+"); b_mas.setFixedWidth(24); b_mas.setObjectName("BtnAjuste") 
-        b_mas.clicked.connect(lambda checked: self._ui_ajustar_simple("death_penalty", 1))
-        
-        fila_death.addWidget(lbl_tit); fila_death.addWidget(lbl_val)
-        fila_death.addWidget(b_menos); fila_death.addWidget(b_mas)
-        fila_death.addStretch(1)
-        layout.addLayout(fila_death)
 
     def _ui_procesar_curacion(self):
         txt = self.input_dano.text()
