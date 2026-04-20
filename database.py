@@ -151,26 +151,26 @@ def obtener_lista_facciones():
         print(f"Error al obtener facciones: {repr(e)}") 
         return []
 
-def obtener_preview_equipo(id_faccion, tier_exacto):
-    """Consulta rápida para previsualizar qué armas y cromo da una facción en un Tier específico."""
+def obtener_preview_equipo(id_faccion, tier_exacto, rol_exacto):
+    """Consulta rápida para previsualizar qué armas y cromo da una facción en un Tier y Rol específico."""
     if not db_pool: return [], []
     try:
         with db_pool.connection() as conn:
             with conn.cursor() as cur:
-                # Buscar Armas
+                # Buscar Armas filtrando por Tier Y Rol
                 cur.execute("""
                     SELECT pa.nombre FROM faccion_armas fa
                     JOIN plantillas_armas pa ON fa.id_plantilla = pa.id_plantilla
-                    WHERE fa.id_faccion = %s AND fa.tier_exacto = %s;
-                """, (id_faccion, tier_exacto))
+                    WHERE fa.id_faccion = %s AND fa.tier_exacto = %s AND (fa.rol_requerido = 'Todos' OR fa.rol_requerido = %s);
+                """, (id_faccion, tier_exacto, rol_exacto))
                 armas = [row['nombre'] for row in cur.fetchall()]
 
-                # Buscar Cromo
+                # Buscar Cromo filtrando por Tier Y Rol
                 cur.execute("""
                     SELECT b.nombre FROM faccion_buffos fb
                     JOIN buffos b ON fb.id_buffo = b.id_buffo 
-                    WHERE fb.id_faccion = %s AND fb.tier_exacto = %s;
-                """, (id_faccion, tier_exacto))
+                    WHERE fb.id_faccion = %s AND fb.tier_exacto = %s AND (fb.rol_requerido = 'Todos' OR fb.rol_requerido = %s);
+                """, (id_faccion, tier_exacto, rol_exacto))
                 cromo = [row['nombre'] for row in cur.fetchall()]
 
                 return armas, cromo
@@ -182,7 +182,7 @@ def obtener_preview_equipo(id_faccion, tier_exacto):
 # ==============================================================================
 
 def instanciar_npc_dinamico(id_chasis, id_faccion):
-    """Construye un NPC uniendo las Stats del Chasis con el Equipo de la Facción según el Tier."""
+    """Construye un NPC uniendo las Stats del Chasis con el Equipo de la Facción según el Tier y el Rol."""
     if not db_pool: 
         return None
     
@@ -195,6 +195,7 @@ def instanciar_npc_dinamico(id_chasis, id_faccion):
                 if not chasis: return None
 
                 tier_npc = chasis['tier']
+                rol_npc = chasis['rol']
 
                 # 2. Traer el Nombre de la Facción
                 cursor.execute("SELECT nombre FROM npc_faccion WHERE id_faccion = %s;", (id_faccion,))
@@ -204,7 +205,7 @@ def instanciar_npc_dinamico(id_chasis, id_faccion):
                 # Nombre compuesto final: ej. "Maelstrom (Veterano)"
                 nombre_final = f"{nombre_faccion} ({chasis['nombre']})"
 
-                # 3. Traer Armas de la Facción (Filtrando EXACTAMENTE por el tier_npc)
+                # 3. Traer Armas de la Facción (Filtrando por Tier Y Rol)
                 cursor.execute("""
                     SELECT pa.nombre, pa.dados_dano, pa.id_dv_estandar, pa.id_dv_autofuego,
                            COALESCE(string_agg(pr.descripcion, ' | '), '') as efecto,
@@ -218,11 +219,11 @@ def instanciar_npc_dinamico(id_chasis, id_faccion):
                     LEFT JOIN propiedades_armas pr ON ap.id_propiedad = pr.id_propiedad
                     LEFT JOIN dv_tablas dvs ON pa.id_dv_estandar = dvs.id_dv_tabla
                     LEFT JOIN dv_tablas dva ON pa.id_dv_autofuego = dva.id_dv_tabla
-                    WHERE fa.id_faccion = %s AND fa.tier_exacto = %s
+                    WHERE fa.id_faccion = %s AND fa.tier_exacto = %s AND (fa.rol_requerido = 'Todos' OR fa.rol_requerido = %s)
                     GROUP BY pa.nombre, pa.dados_dano, pa.id_dv_estandar, pa.id_dv_autofuego,
                              dvs.dist_0_6m, dvs.dist_7_12m, dvs.dist_13_25m, dvs.dist_26_50m, dvs.dist_51_100m, dvs.dist_101_200m, dvs.dist_201_400m, dvs.dist_401_800m,
                              dva.dist_0_6m, dva.dist_7_12m, dva.dist_13_25m, dva.dist_26_50m, dva.dist_51_100m, dva.dist_101_200m, dva.dist_201_400m, dva.dist_401_800m;
-                """, (id_faccion, tier_npc))
+                """, (id_faccion, tier_npc, rol_npc))
                 
                 dicc_armas = {}
                 for arma in cursor.fetchall():
@@ -241,13 +242,13 @@ def instanciar_npc_dinamico(id_chasis, id_faccion):
                         "dv_valores_auto": dv_auto
                     }
 
-                # 4. Traer Cromo de la Facción (Filtrando EXACTAMENTE por el tier_npc)
+                # 4. Traer Cromo de la Facción (Filtrando por Tier Y Rol)
                 cursor.execute("""
                     SELECT b.nombre, b.descripcion 
                     FROM faccion_buffos fb
                     JOIN buffos b ON fb.id_buffo = b.id_buffo 
-                    WHERE fb.id_faccion = %s AND fb.tier_exacto = %s;
-                """, (id_faccion, tier_npc))
+                    WHERE fb.id_faccion = %s AND fb.tier_exacto = %s AND (fb.rol_requerido = 'Todos' OR fb.rol_requerido = %s);
+                """, (id_faccion, tier_npc, rol_npc))
                 
                 lista_mejoras = [{"nombre": b["nombre"], "descripcion": b["descripcion"]} for b in cursor.fetchall()]
 

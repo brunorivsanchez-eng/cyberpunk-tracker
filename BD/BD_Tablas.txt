@@ -1,15 +1,19 @@
 /* ==============================================================================
    FASE 0: LIMPIEZA DEL ENTORNO (De Hijas a Padres)
 ============================================================================== */
+-- 1. Borramos tablas hijas (puentes nuevos y viejos por si acaso)
 DROP TABLE IF EXISTS armas_propiedades CASCADE;
-DROP TABLE IF EXISTS npc_armas CASCADE;
-DROP TABLE IF EXISTS npc_buffos CASCADE;
+DROP TABLE IF EXISTS faccion_armas CASCADE;
+DROP TABLE IF EXISTS faccion_buffos CASCADE;
 DROP TABLE IF EXISTS jugadores_debuffos CASCADE;
+
+-- 2. Borramos tablas padres (nuevas y viejas)
 DROP TABLE IF EXISTS plantillas_armas CASCADE;
 DROP TABLE IF EXISTS propiedades_armas CASCADE;
 DROP TABLE IF EXISTS dv_tablas CASCADE;
 DROP TABLE IF EXISTS buffos CASCADE;
-DROP TABLE IF EXISTS npc CASCADE;
+DROP TABLE IF EXISTS npc_faccion CASCADE;
+DROP TABLE IF EXISTS npc_base CASCADE;
 DROP TABLE IF EXISTS jugadores CASCADE;
 DROP TABLE IF EXISTS catalogo_debuffos CASCADE;
 
@@ -54,50 +58,60 @@ CREATE TABLE armas_propiedades (
     PRIMARY KEY (id_plantilla, id_propiedad)
 );
 
--- 5. Catálogo Base de Enemigos
+-- 5. Catálogo Base de Mejoras / Cromo 
+CREATE TABLE buffos (
+    id_buffo SERIAL PRIMARY KEY,
+    nombre VARCHAR(100) UNIQUE NOT NULL,
+    descripcion TEXT NOT NULL
+);
+
 /* ==============================================================================
-   NUEVO MODELO MODULAR: CHASIS + FACCIONES + EQUIPO POR TIER
+   NUEVO MODELO MODULAR: CHASIS + FACCIONES + EQUIPO POR TIER Y ROL
 ============================================================================== */
 
--- 1. EL CHASIS (Estadísticas puras según el rango del enemigo)
--- Renombramos o creamos la tabla npc_base
+-- 6. EL CHASIS (Estadísticas puras según el rango del enemigo)
 CREATE TABLE npc_base (
     id_base SERIAL PRIMARY KEY,
-    nombre VARCHAR(100) UNIQUE NOT NULL, -- Ej: "Novato", "Veterano", "Élite"
+    nombre VARCHAR(100) UNIQUE NOT NULL, 
     tier INTEGER CHECK (tier IN (1, 2, 3, 4)) NOT NULL, 
     max_hp INTEGER NOT NULL,
     max_body_sp INTEGER DEFAULT 0,
     max_head_sp INTEGER DEFAULT 0,
     max_move INTEGER DEFAULT 5,
     base_combate INTEGER DEFAULT 10,    
-    base_iniciativa INTEGER DEFAULT 4
+    base_iniciativa INTEGER DEFAULT 4,
+    rol VARCHAR(50) DEFAULT 'General' 
 );
 
--- 2. LAS FACCIONES (Define la "identidad" de la pandilla o corpo)
+-- 7. LAS FACCIONES (Define la "identidad" de la pandilla o corpo)
 CREATE TABLE npc_faccion (
     id_faccion SERIAL PRIMARY KEY,
-    nombre VARCHAR(100) UNIQUE NOT NULL -- Ej: "Maelstrom", "Arasaka", "Tyger Claws"
+    nombre VARCHAR(100) UNIQUE NOT NULL 
 );
 
--- 3. PUENTE: ARMAMENTO POR FACCIÓN Y TIER
--- Aquí definimos qué armas usa cada facción según el nivel del NPC
+-- 8. PUENTE: ARMAMENTO POR FACCIÓN, TIER Y ROL
 CREATE TABLE faccion_armas (
     id_faccion INTEGER REFERENCES npc_faccion(id_faccion) ON DELETE CASCADE,
     id_plantilla INTEGER REFERENCES plantillas_armas(id_plantilla) ON DELETE CASCADE,
-    tier_exacto INTEGER NOT NULL, -- El nivel del NPC que recibirá esta arma
-    PRIMARY KEY (id_faccion, id_plantilla, tier_exacto)
+    tier_exacto INTEGER NOT NULL, 
+    rol_requerido VARCHAR(50) DEFAULT 'Todos', 
+    PRIMARY KEY (id_faccion, id_plantilla, tier_exacto, rol_requerido)
 );
 
--- 4. PUENTE: MEJORAS (CROMO) POR FACCIÓN Y TIER
--- Aquí definimos qué ciberware usa cada facción según el nivel del NPC
+-- 9. PUENTE: MEJORAS (CROMO) POR FACCIÓN, TIER Y ROL
 CREATE TABLE faccion_buffos (
     id_faccion INTEGER REFERENCES npc_faccion(id_faccion) ON DELETE CASCADE,
     id_buffo INTEGER REFERENCES buffos(id_buffo) ON DELETE CASCADE,
-    tier_exacto INTEGER NOT NULL, -- El nivel del NPC que recibirá este cromo
-    PRIMARY KEY (id_faccion, id_buffo, tier_exacto)
+    tier_exacto INTEGER NOT NULL, 
+    rol_requerido VARCHAR(50) DEFAULT 'Todos', 
+    PRIMARY KEY (id_faccion, id_buffo, tier_exacto, rol_requerido)
 );
 
--- 9. Personajes de los Usuarios
+/* ==============================================================================
+   JUGADORES Y ESTADOS
+============================================================================== */
+
+-- 10. Personajes de los Usuarios
 CREATE TABLE jugadores (
     id_jugador SERIAL PRIMARY KEY,
     nombre VARCHAR(100) UNIQUE NOT NULL,
@@ -109,10 +123,10 @@ CREATE TABLE jugadores (
     head_sp INTEGER DEFAULT 0,
     max_luck INTEGER DEFAULT 0,
     luck INTEGER DEFAULT 0,
-    max_move INTEGER DEFAULT 5,
+    max_move INTEGER DEFAULT 5
 );
 
--- 10. Catálogo Base de Estados y Heridas
+-- 11. Catálogo Base de Estados y Heridas
 CREATE TABLE catalogo_debuffos (
     id_debufo SERIAL PRIMARY KEY,
     nombre VARCHAR(50) NOT NULL,
@@ -123,7 +137,7 @@ CREATE TABLE catalogo_debuffos (
     UNIQUE (nombre, tipo) 
 );
 
--- 11. Puente: Estados del Jugador
+-- 12. Puente: Estados del Jugador
 CREATE TABLE jugadores_debuffos (
     id_jugador INTEGER REFERENCES jugadores(id_jugador) ON DELETE CASCADE,
     id_debufo INTEGER REFERENCES catalogo_debuffos(id_debufo) ON DELETE CASCADE,

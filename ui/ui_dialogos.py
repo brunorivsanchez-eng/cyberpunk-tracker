@@ -364,12 +364,13 @@ class DialogoBestiario(QDialog):
         )
         self.lbl_prev_stats.setText(stats_texto)
 
-        # 2. Consultar el Equipo en tiempo real (De la Facción)
-        import database # Lo importamos aquí localmente para la consulta rápida
-        armas, cromo = database.obtener_preview_equipo(id_faccion, chasis['tier'])
         
-        txt_armas = "🔫 ARMAS: " + (", ".join(armas) if armas else "Desarmado")
-        txt_cromo = "🦾 CROMO: " + (", ".join(cromo) if cromo else "Puro Carne")
+        # 2. Consultar el Equipo en tiempo real (De la Facción)
+        import database 
+        armas, cromo = database.obtener_preview_equipo(id_faccion, chasis['tier'], chasis['rol'])
+        
+        txt_armas = "🔫 ARMAS: " + (", ".join(armas) if armas else "Null")
+        txt_cromo = "🦾 CROMO: " + (", ".join(cromo) if cromo else "Null")
         
         self.lbl_prev_equipo.setText(f"{txt_armas}\n\n{txt_cromo}")
         

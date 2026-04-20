@@ -172,30 +172,36 @@ INSERT INTO catalogo_debuffos (nombre, descripcion, tipo, remedio_rapido, tratam
 
 -- A. JUGADOR POR DEFAULT
 INSERT INTO jugadores (nombre, max_hp, hp, max_body_sp, body_sp, max_head_sp, head_sp, max_luck, luck, max_move) VALUES 
-('Dante', 45, 45, 4, 4, 4, 4, 4, 4, 6);
+('Ivan', 45, 45, 7, 7, 7, 7, 6, 6, 8),
+('Case', 45, 45, 0, 0, 0, 0, 6, 6, 4);
 
 -- B. UN ÚNICO NPC DUMMY (SISTEMA MODULAR: CHASIS + FACCIÓN)
 
 -- 1. Crear el Chasis del Dummy
-INSERT INTO npc_base (nombre, tier, max_hp, max_body_sp, max_head_sp, max_move, base_combate, base_iniciativa) VALUES 
-('Dummy Chasis (Tier 1)', 1, 25, 4, 4, 6, 10, 4);
+-- Insertamos los 4 Chasis Maestros
+INSERT INTO npc_base (nombre, tier, max_hp, max_body_sp, max_head_sp, max_move, base_combate, base_iniciativa, rol) VALUES 
+('Punk (CaC) ', 1, 30, 0, 0, 7, 9, 4, 'Melee'),
+('Punk (R)', 1, 20, 0, 0, 5, 9, 6, 'Ranged'),
+('Maton (CaC) ', 2, 40, 7, 7, 7, 12, 5, 'Melee'),
+('Range (R)', 2, 30, 4, 4, 4, 12, 8, 'Ranged'),
+('Tank (R)', 2, 30, 15, 15, 3, 12, 5, 'Tank');
 
--- 2. Crear la Facción del Dummy
-INSERT INTO npc_faccion (nombre) VALUES 
-('Facción de Prueba');
+INSERT INTO npc_faccion (nombre) VALUES ('Maelstrom');
 
--- 3. Asignar 1 Arma a la Facción (Vinculada al Tier 1)
-INSERT INTO faccion_armas (id_faccion, id_plantilla, tier_exacto) VALUES 
-(
-  (SELECT id_faccion FROM npc_faccion WHERE nombre = 'Facción de Prueba'), 
-  (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola mediana (Power)'), 
-  1 -- Tier Exacto
-);
+-- EQUIPO PARA LOS TIER 1 (Novatos)
+-- Arma para el Melee (Tier 1, Rol: Melee) -> Cuchillo
+INSERT INTO faccion_armas (id_faccion, id_plantilla, tier_exacto, rol_requerido) VALUES 
+(1, (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Arma cac (Media)'), 1, 'Melee');
 
--- 4. Asignar 1 Cromo a la Facción (Vinculada al Tier 1)
-INSERT INTO faccion_buffos (id_faccion, id_buffo, tier_exacto) VALUES 
-(
-  (SELECT id_faccion FROM npc_faccion WHERE nombre = 'Facción de Prueba'), 
-  (SELECT id_buffo FROM buffos WHERE nombre = 'Kerenzikov'), 
-  1 -- Tier Exacto
-);
+-- Arma para el Distancia (Tier 1, Rol: Ranged) -> Pistola
+INSERT INTO faccion_armas (id_faccion, id_plantilla, tier_exacto, rol_requerido) VALUES 
+(1, (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola pesada (Power)'), 1, 'Ranged');
+
+-- EQUIPO PARA LOS TIER 2 (Veteranos)
+-- Arma para el Gladiador (Tier 2, Rol: Melee) -> Escopeta
+INSERT INTO faccion_armas (id_faccion, id_plantilla, tier_exacto, rol_requerido) VALUES 
+(1, (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Escopeta (Power)'), 2, 'Melee');
+
+-- Arma para el Operativo (Tier 2, Rol: Ranged) -> Rifle de Asalto
+INSERT INTO faccion_armas (id_faccion, id_plantilla, tier_exacto, rol_requerido) VALUES 
+(1, (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Rifle de asalto (Power)'), 2, 'Ranged');
