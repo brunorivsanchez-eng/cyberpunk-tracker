@@ -220,8 +220,11 @@ class DialogoBestiario(QDialog):
             QComboBox { background-color: #2C2C2C; border: 1px solid #555; padding: 5px; font-weight: bold;}
             QComboBox::drop-down { border-left: 1px solid #555; }
         """)
+        self.combo_faccion.addItem("--- Selecciona un Loadout ---", userData=None)
+        ##self.combo_faccion.addItem("--- Selecciona un Loadout ---", userData=None)
         for faccion in self.lista_facciones:
             self.combo_faccion.addItem(faccion['nombre'], userData=faccion['id_faccion'])
+        self.combo_faccion.currentIndexChanged.connect(self.actualizar_arbol_por_faccion)
         self.combo_faccion.currentIndexChanged.connect(self.actualizar_vista_previa)
         col2.addWidget(self.combo_faccion)
 
@@ -311,12 +314,29 @@ class DialogoBestiario(QDialog):
         col3.addWidget(self.btn_desplegar)
         layout_principal.addLayout(col3, 1)
 
-        self._poblar_arbol()
+        self.actualizar_arbol_por_faccion()
 
-    def _poblar_arbol(self):
+    def actualizar_arbol_por_faccion(self):
+        """Reconstruye el árbol de chasis filtrando los que no tienen armas en la facción actual."""
+        id_faccion = self.combo_faccion.currentData()
+        if not id_faccion: 
+            return
+
+        # 1. Consultar a la BD qué chasis tienen al menos un arma
+        import database
+        chasis_validos_db = database.obtener_chasis_validos_por_faccion(id_faccion)
+        # Extraemos solo los IDs para filtrar fácilmente
+        ids_validos = [c['id_base'] for c in chasis_validos_db]
+
+        # 2. Limpiar y reconstruir el árbol
         self.arbol.clear()
         tiers = {}
+        
         for chasis in self.lista_chasis:
+            # MAGIA: Si el ID del chasis no está en la lista de válidos, lo saltamos
+            if chasis['id_base'] not in ids_validos:
+                continue 
+                
             t = f"Rango/Tier {chasis['tier']}"
             if t not in tiers: 
                 tiers[t] = QTreeWidgetItem(self.arbol, [t])
@@ -325,8 +345,13 @@ class DialogoBestiario(QDialog):
                 elif chasis['tier'] == 2: tiers[t].setForeground(0, QColor("#FFA500"))
             
             h = QTreeWidgetItem(tiers[t], [chasis['nombre']])
+            # Guardamos la data completa para que funcione el escáner y el despliegue
             h.setData(0, Qt.ItemDataRole.UserRole, chasis)
+            
         self.arbol.expandAll()
+        
+        # 3. Limpiar la vista previa porque la selección del árbol se borró
+        self.actualizar_vista_previa()
 
     def filtrar_arbol(self, texto):
         texto = texto.lower()

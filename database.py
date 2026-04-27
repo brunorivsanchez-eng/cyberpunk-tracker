@@ -274,6 +274,28 @@ def instanciar_npc_dinamico(id_chasis, id_faccion):
     except Exception as e:
         print(f"Error Crítico al instanciar NPC Ensamblado: {e}")
         return None
+def obtener_chasis_validos_por_faccion(id_faccion):
+    """Devuelve solo los chasis que tienen armamento configurado para una facción específica."""
+    if not db_pool: 
+        return []
+    
+    try:
+        with db_pool.connection() as conn:
+            with conn.cursor() as cur:
+                # Usamos DISTINCT para que el chasis no se repita si tiene 3 armas distintas
+                cur.execute("""
+                    SELECT DISTINCT nb.id_base, nb.nombre, nb.tier, nb.rol
+                    FROM npc_base nb
+                    JOIN faccion_armas fa ON nb.tier = fa.tier_exacto
+                    WHERE fa.id_faccion = %s 
+                      AND (fa.rol_requerido = nb.rol OR fa.rol_requerido = 'Todos')
+                    ORDER BY nb.tier, nb.nombre;
+                """, (id_faccion,))
+                
+                return cur.fetchall()
+    except Exception as e:
+        print(f"Error al obtener chasis filtrados por facción: {e}")
+        return []
     
 def cerrar_conexion_pool():
     """Cierra los workers del pool de NeonDB de forma segura al apagar la app."""

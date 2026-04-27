@@ -111,43 +111,62 @@ INSERT INTO armas_propiedades (id_plantilla, id_propiedad) VALUES
 
 -- E. CROMO PURAMENTE DE COMBATE
 INSERT INTO buffos (nombre, descripcion) VALUES 
+
+-- [ 1. ÓPTICA Y SISTEMAS DE PUNTERÍA (Visión y Ataques a Distancia) ] --
 ('Sistema de puntería', '+1 a tiradas en Disparos Apuntados.'),
 ('Kiroshi "Stalker"', '+1 a tiradas de ataque al usar Fuego Automático.'),
 ('Shock Absorber', '+1 a chequeos de Fuego Automático o Fuego de Supresión.'),
 ('Enlace Inteligente (Smartlink)', 'Si falla un disparo por 5 o menos, tira 1d10 + 14 para reintentar el impacto.'),
 ('Coprocesador Balístico', '+2 a la tirada de ataque al realizar un disparo de rebote (con Armas Power).'),
+('Luz tenue / IR / UV', 'Ignora por completo las penalizaciones por oscuridad, niebla o Granadas de Humo.'),
+('Protección Antideslumbrante', 'Inmune a los efectos de las Granadas Aturdidoras.'),
+
+-- [ 2. MEJORAS FÍSICAS (Potenciadores para NPCs de Melee) ] --
 ('Microrotores', '+1 a tiradas de Pelea, Armas CC y Artes Marciales.'),
 ('Médula Densa', 'Su CUERPO cuenta como +4 (máx 12) para calcular daño cuerpo a cuerpo.'),
 ('Pistones de Combate', 'Sus ataques de Artes Marciales hacen daño como si tuviera CUERPO 11 (4d6).'),
-('Mantis Blades / Monowire', 'Arma CC Pesada/Excelente oculta. El Monowire ignora SP inferior a 11. Se despliegan sin acción.'),
+('Armazón Lineal (Sigma/Beta)', 'Exoesqueleto interno. Fija el CUERPO en 12 o 14 (Aumenta el daño cuerpo a cuerpo brutalmente).'),
+
+-- [ 3. ARMAS CIBERNÉTICAS INTEGRADAS (Sorpresas Ocultas) ] --
+('Destripadores ', 'Arma CC media oculta. Se despliegan sin acción.'),
+('Mantis Blades ', 'Arma CC Pesada oculta. Se despliegan sin acción.'),
+('Monowire', 'Arma CC Pesada oculta. Se despliegan sin acción.'),
 ('Gorilla Arms', 'Arma CC. Fija el BODY en 11 para daño cuerpo a cuerpo y destruir coberturas.'),
 ('Lanzaproyectiles', 'Lanzagranadas o Lanzamisiles integrado en el brazo. Se despliega sin gastar acción.'),
 ('Firebreather', 'Lanzallamas en la garganta. Inflige el estado Fuego Mortal a corta distancia.'),
+
+-- [ 4. SISTEMAS NEURALES Y REFLEJOS (Iniciativa y Velocidad) ] --
 ('Sandevistan', '+3 a la Tirada de Iniciativa.'),
 ('Kerenzikov', 'Permite esquivar ataques a distancia (balas).'),
-('Luz tenue / IR / UV', 'Ignora por completo las penalizaciones por oscuridad, niebla o Granadas de Humo.'),
-('Protección Antideslumbrante', 'Inmune a los efectos de las Granadas Aturdidoras.'),
-('Escudo Oculto', 'Despliega un escudo antibalas desde el brazo como acción libre.'),
 ('Self-ICE', 'Añade +1 a la dificultad (DV) de cualquier Quickhack que intente el Netrunner del grupo.'),
+
+-- [ 5. SUPERVIVENCIA, BLINDAJE Y DEFENSA (Para NPCs Tanque) ] --
+('Escudo Oculto', 'Despliega un escudo antibalas desde el brazo como acción libre.'),
 ('Cyberskull', 'Inmune al multiplicador de daño por disparos a la cabeza (x2 o x4 no aplican).'),
+('Blindaje Subdérmico Pesado', 'Otorga SP 11 (Armadura natural) en cuerpo y cabeza, pero impone -1 a REF, DEX y MOV.'),
 ('Editor de Dolor / Berserk', 'Ignora completamente el penalizador de -2 a todas las acciones por Herida Grave.'),
 ('Segundo Corazón', 'La primera vez que cae a Mortalmente Herido, lo evita y recupera HP igual a su stat CUERPO.'),
-('Shock-n-Awe', 'Malla eléctrica. Enemigos que le impacten cuerpo a cuerpo sufren 2 de daño directo automáticamente.'),
-('Armazón Lineal (Sigma/Beta)', 'Exoesqueleto interno. Fija el CUERPO en 12 o 14 (Aumenta el daño cuerpo a cuerpo brutalmente).'),
-('Blindaje Subdérmico Pesado', 'Otorga SP 11 (Armadura natural) en cuerpo y cabeza, pero impone -1 a REF, DEX y MOV.');
+('Shock-n-Awe', 'Malla eléctrica. Enemigos que le impacten cuerpo a cuerpo sufren 2 de daño directo automáticamente.');
 
 -- F. CATÁLOGO DE ESTADOS (DEBUFFOS TEMPORALES Y PERMANENTES)
+-- TEMPORALES
 INSERT INTO catalogo_debuffos (nombre, descripcion, tipo, remedio_rapido, tratamiento) VALUES 
 ('---', 'Ranura vacía.', 'Temporal', NULL, NULL),
+('Gravemente Herido', '-2 a todas las acciones.', 'Temporal', 'N/D', 'Estabilizar VD 13'),
+('Mortalmente Herido', 
+         '-4 a todas las acciones. -6 a MOV (mínimo 1). 
+         Salvación contra muerte al inicio de cada turno. Sufre herida crítica si recibe daño. 
+         Penalización a salvación aumenta en 1.',
+   'Temporal', 'N/D', 'Recuperar a 1 PD tiene VD 17 y queda inconsciente por 1 minuto.'),
 ('Cegado', '-4 a toda acción dentro de esta oscuridad.', 'Temporal', NULL, NULL),
 ('Fuego Leve', '5 de daño directo al final de tu turno. Requiere gastar una acción para apagar.', 'Temporal', NULL, NULL),
 ('Fuego Mortal', '10 de daño directo al final de tu turno. Requiere gastar una acción para apagar.', 'Temporal', NULL, NULL),
 ('Drogado', '-2 a toda acción mientras dure el efecto.', 'Temporal', NULL, NULL),
 ('Tumbado', 'Movimiento máximo reducido a 1. Requiere gastar una acción para levantarse.', 'Temporal', NULL, NULL),
 ('Inconsciente', 'Incapaz de actuar.', 'Temporal', NULL, NULL),
+
+--PERMANENTES
 ('---', 'Ranura vacía.', 'Permanente', NULL, NULL),
-('Gravemente Herido', '-2 a todas las acciones.', 'Permanente', 'N/D', 'Estabilizar VD 13'),
-('Mortalmente Herido', '-4 a todas las acciones. -6 a MOV (mínimo 1). Salvación contra muerte al inicio de cada turno. Sufre herida crítica si recibe daño. Penalización a salvación aumenta en 1.', 'Permanente', 'N/D', 'Recuperar a 1 PD tiene VD 17 y queda inconsciente por 1 minuto.'),
 ('1- Cráneo Agrietado', 'Disparos a tu cabeza multiplican el daño que atraviesa SP por 4. Penalización salvación muerte +1.', 'Permanente', 'Primeros Auxilios VD 15', 'Paramédico VD 15'),
 ('2- Pierna Desmembrada', 'Pierna desaparecida. -6 a MOV. No puedes esquivar. Penalización salvación muerte +1.', 'Permanente', 'N/D', 'Paramédico VD 21'),
 ('3- Mano Desmembrada', 'La Mano ha desaparecido. Dejas caer objetos en esa mano. Penalización salvación muerte +1.', 'Permanente', 'N/D', 'Paramédico VD 21'),
@@ -167,41 +186,113 @@ INSERT INTO catalogo_debuffos (nombre, descripcion, tipo, remedio_rapido, tratam
 
 
 /* ==============================================================================
-   FASE 3: POBLADO DE ENTIDADES (JUGADORES Y NPCs MODULARES)
+   FASE 3: POBLADO DE ENTIDADES (JUGADORES )
 ============================================================================== */
 
--- A. JUGADOR POR DEFAULT
+-- A. JUGADORES POR DEFAULT
 INSERT INTO jugadores (nombre, max_hp, hp, max_body_sp, body_sp, max_head_sp, head_sp, max_luck, luck, max_move) VALUES 
 ('Ivan', 45, 45, 7, 7, 7, 7, 6, 6, 8),
 ('Case', 45, 45, 0, 0, 0, 0, 6, 6, 4);
 
--- B. UN ÚNICO NPC DUMMY (SISTEMA MODULAR: CHASIS + FACCIÓN)
+/* ==============================================================================
+   FASE 4: POBLADO DE ENTIDADES (NPCs MODULARES)
+============================================================================== */
 
--- 1. Crear el Chasis del Dummy
--- Insertamos los 4 Chasis Maestros
+-- 1. CHASIS BASE (La matemática no cambia, sirven para cualquier facción)
 INSERT INTO npc_base (nombre, tier, max_hp, max_body_sp, max_head_sp, max_move, base_combate, base_iniciativa, rol) VALUES 
-('Punk (CaC) ', 1, 30, 0, 0, 7, 9, 4, 'Melee'),
+('Punk (CaC)', 1, 30, 0, 0, 6, 9, 4, 'Melee'),
 ('Punk (R)', 1, 20, 0, 0, 5, 9, 6, 'Ranged'),
-('Maton (CaC) ', 2, 40, 7, 7, 7, 12, 5, 'Melee'),
+('Maton (CaC)', 2, 40, 7, 7, 7, 12, 5, 'Melee'),
 ('Range (R)', 2, 30, 4, 4, 4, 12, 8, 'Ranged'),
-('Tank (R)', 2, 30, 15, 15, 3, 12, 5, 'Tank');
+('Flak (R)', 2, 30, 15, 15, 3, 12, 5, 'Flak'),
+('Artillery (R)', 3, 45, 7, 7, 4, 13, 8, 'Ranged'),
+('Gorilla (CaC)', 3, 50, 11, 11, 6, 13, 6, 'Gorilla'),
+('Assassin (CaC)', 3, 35, 7, 7, 8, 13, 10, 'Assassin');
 
+/* ==============================================================================
+   FASE 5: Creacion de FACCIÓN
+============================================================================== */
+
+/* ------------------------------------------------------------------------------
+   A. MERCS OF NIGHT CITY (PROFESIONALES INDEPENDIENTES)
+------------------------------------------------------------------------------ */
+
+-- 1. Registro de la Facción
+INSERT INTO npc_faccion (nombre) VALUES ('Mercs OF NIGHT CITY');
+
+-- 2. Armamento por Tier y Rol
+INSERT INTO faccion_armas (id_faccion, id_plantilla, tier_exacto, rol_requerido) VALUES 
+-- [ TIER 1 - Novatos / Junior Mercs ]
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Mercs OF NIGHT CITY'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola mediana (Smart)'), 1, 'Ranged'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Mercs OF NIGHT CITY'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Granada de humo'), 1, 'Ranged'), 
+
+-- [ TIER 2 - Estándar / Mercs de Contrato ]
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Mercs OF NIGHT CITY'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola muy pesada (Tech)'), 2, 'Ranged'),
+
+-- [ TIER 3 - Élite / Solos ]
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Mercs OF NIGHT CITY'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'SMG (Power)'), 3, 'Ranged');
+
+
+-- 3. Cromo y Mejoras 
+INSERT INTO faccion_buffos (id_faccion, id_buffo, tier_exacto, rol_requerido) VALUES 
+-- [ CROMO TIER 1 ]
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Mercs OF NIGHT CITY'), (SELECT id_buffo FROM buffos WHERE nombre = 'Enlace Inteligente (Smartlink)'), 1, 'Ranged'),
+
+-- [ CROMO TIER 2 ]
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Mercs OF NIGHT CITY'), (SELECT id_buffo FROM buffos WHERE nombre = 'Sandevistan'), 2, 'Ranged'),
+
+-- [ CROMO TIER 3 ]
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Mercs OF NIGHT CITY'), (SELECT id_buffo FROM buffos WHERE nombre = 'Kiroshi "Stalker"'), 3, 'Ranged'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Mercs OF NIGHT CITY'), (SELECT id_buffo FROM buffos WHERE nombre = 'Shock Absorber'), 3, 'Ranged');
+
+
+/* ------------------------------------------------------------------------------
+   B. MAELSTROM (CIBERPSICÓPATAS)
+------------------------------------------------------------------------------ */
+
+-- 1. CREACIÓN DE LA FACCIÓN MAELSTROM
 INSERT INTO npc_faccion (nombre) VALUES ('Maelstrom');
 
--- EQUIPO PARA LOS TIER 1 (Novatos)
--- Arma para el Melee (Tier 1, Rol: Melee) -> Cuchillo
+-- 2. MAELSTROM ARMAS 
 INSERT INTO faccion_armas (id_faccion, id_plantilla, tier_exacto, rol_requerido) VALUES 
-(1, (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Arma cac (Media)'), 1, 'Melee');
+-- [ TIER 1 - Novatos ]
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Maelstrom'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Arma cac (Media)'), 1, 'Melee'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Maelstrom'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola mediana (Power)'), 1, 'Ranged'),
 
--- Arma para el Distancia (Tier 1, Rol: Ranged) -> Pistola
-INSERT INTO faccion_armas (id_faccion, id_plantilla, tier_exacto, rol_requerido) VALUES 
-(1, (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola pesada (Power)'), 1, 'Ranged');
+-- [ TIER 2 - Veteranos ]
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Maelstrom'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Arma cac (Pesada)'), 2, 'Melee'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Maelstrom'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Escopeta (Power)'), 2, 'Melee'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Maelstrom'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola muy pesada (Power)'), 2, 'Ranged'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Maelstrom'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'SMG (Power)'), 2, 'Ranged'),
 
--- EQUIPO PARA LOS TIER 2 (Veteranos)
--- Arma para el Gladiador (Tier 2, Rol: Melee) -> Escopeta
-INSERT INTO faccion_armas (id_faccion, id_plantilla, tier_exacto, rol_requerido) VALUES 
-(1, (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Escopeta (Power)'), 2, 'Melee');
+-- [ TIER 3 - Élites ]
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Maelstrom'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Arma cac (Pesada)'), 3, 'Assassin'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Maelstrom'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Arma cac (Muy pesada)'), 3, 'Gorilla'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Maelstrom'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Rifle de asalto (Power)'), 3, 'Ranged'); 
 
--- Arma para el Operativo (Tier 2, Rol: Ranged) -> Rifle de Asalto
-INSERT INTO faccion_armas (id_faccion, id_plantilla, tier_exacto, rol_requerido) VALUES 
-(1, (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Rifle de asalto (Power)'), 2, 'Ranged');
+-- 3. MAELSTROM BUFOS 
+INSERT INTO faccion_buffos (id_faccion, id_buffo, tier_exacto, rol_requerido) VALUES 
+-- [ ÓPTICA BASE - TODOS LOS TIERS ]
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Maelstrom'), (SELECT id_buffo FROM buffos WHERE nombre = 'Luz tenue / IR / UV'), 1, 'Todos'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Maelstrom'), (SELECT id_buffo FROM buffos WHERE nombre = 'Protección Antideslumbrante'), 1, 'Todos'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Maelstrom'), (SELECT id_buffo FROM buffos WHERE nombre = 'Luz tenue / IR / UV'), 2, 'Todos'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Maelstrom'), (SELECT id_buffo FROM buffos WHERE nombre = 'Protección Antideslumbrante'), 2, 'Todos'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Maelstrom'), (SELECT id_buffo FROM buffos WHERE nombre = 'Luz tenue / IR / UV'), 3, 'Todos'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Maelstrom'), (SELECT id_buffo FROM buffos WHERE nombre = 'Protección Antideslumbrante'), 3, 'Todos'),
+
+-- [ CROMO TIER 1 - La Masilla ]
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Maelstrom'), (SELECT id_buffo FROM buffos WHERE nombre = 'Destripadores '), 1, 'Melee'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Maelstrom'), (SELECT id_buffo FROM buffos WHERE nombre = 'Coprocesador Balístico'), 1, 'Ranged'),
+
+-- [ CROMO TIER 2 - Borgware Extremo ]
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Maelstrom'), (SELECT id_buffo FROM buffos WHERE nombre = 'Editor de Dolor / Berserk'), 2, 'Melee'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Maelstrom'), (SELECT id_buffo FROM buffos WHERE nombre = 'Coprocesador Balístico'), 2, 'Ranged'),
+
+-- [ CROMO TIER 3 - La Ciberpsicosis Total ]
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Maelstrom'), (SELECT id_buffo FROM buffos WHERE nombre = 'Sandevistan'), 3, 'Assassin'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Maelstrom'), (SELECT id_buffo FROM buffos WHERE nombre = 'Kerenzikov'), 3, 'Assassin'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Maelstrom'), (SELECT id_buffo FROM buffos WHERE nombre = 'Mantis Blades '), 3, 'Assassin'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Maelstrom'), (SELECT id_buffo FROM buffos WHERE nombre = 'Gorilla Arms'), 3, 'Gorilla'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Maelstrom'), (SELECT id_buffo FROM buffos WHERE nombre = 'Editor de Dolor / Berserk'), 3, 'Gorilla'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Maelstrom'), (SELECT id_buffo FROM buffos WHERE nombre = 'Kiroshi "Stalker"'), 3, 'Ranged'),   
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Maelstrom'), (SELECT id_buffo FROM buffos WHERE nombre = 'Shock Absorber'), 3, 'Ranged');    
