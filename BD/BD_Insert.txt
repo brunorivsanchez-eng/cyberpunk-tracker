@@ -109,6 +109,43 @@ INSERT INTO armas_propiedades (id_plantilla, id_propiedad) VALUES
 ((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Granada aturdidora'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Granada Aturdidora')),
 ((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Granada incendiaria'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Efecto Incendiario'));
 
+/* ==============================================================================
+   AMPLIACIÓN FASE 2: QUICKHACKS (Armas Cibernéticas de Netrunner)
+============================================================================== */
+
+-- 1. PROPIEDADES DE QUICKHACKS (Los efectos que se mostrarán en el Tooltip)
+INSERT INTO propiedades_armas (nombre, descripcion) VALUES 
+('Efecto: Sobrecalentamiento', 'Objetivo sufre "Fuego Fuerte": 5 de daño directo al final de cada turno hasta usar Acción en apagarse.'),
+('Efecto: Cortocircuito', 'Daño directo ignora SP. (Contra Mechs/Drones inflige 6d6 en vez del daño base).'),
+('Efecto: Contagio', 'Daño directo ignora SP. Se propaga a enemigos en un radio de 6 metros.'),
+('Efecto: Colapso de Sinapsis', 'Daño directo masivo que ignora SP.'),
+('Efecto: Fallo de Arma', 'Arma enemiga pierde funciones Smart/Tech/Power. -2 a sus tiradas de ataque por 3 rondas.'),
+('Efecto: Fallo de Ciberware', 'Desactiva una pieza de ciberware no fundamental del objetivo por 3 rondas.'),
+('Efecto: Entorpecer Movimiento', 'El MOVE del objetivo se vuelve 1 y recibe -2 a Esquivar por 3 rondas.'),
+('Efecto: Reiniciar Óptica', 'Objetivo recibe -4 a todas las tiradas que dependan de la vista por 3 rondas.');
+
+-- 2. PLANTILLAS DE QUICKHACKS (Registrados como armas sin tabla de distancia)
+INSERT INTO plantillas_armas (nombre, dados_dano, id_dv_estandar, id_dv_autofuego) VALUES 
+('QH: Sobrecalentamiento (VD 15)', 0, NULL, NULL),
+('QH: Cortocircuito (VD 15)', 3, NULL, NULL),
+('QH: Contagio (VD 17)', 3, NULL, NULL),
+('QH: Colapso de Sinapsis (VD 19)', 5, NULL, NULL),
+('QH: Fallo de Arma (VD 15)', 0, NULL, NULL),
+('QH: Fallo de Ciberware (VD 15)', 0, NULL, NULL),
+('QH: Entorpecer Mov. (VD 17)', 0, NULL, NULL),
+('QH: Reiniciar Óptica (VD 17)', 0, NULL, NULL);
+
+-- 3. ASIGNACIÓN DE PROPIEDADES A LOS QUICKHACKS
+INSERT INTO armas_propiedades (id_plantilla, id_propiedad) VALUES 
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'QH: Sobrecalentamiento (VD 15)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Efecto: Sobrecalentamiento')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'QH: Cortocircuito (VD 15)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Efecto: Cortocircuito')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'QH: Contagio (VD 17)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Efecto: Contagio')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'QH: Colapso de Sinapsis (VD 19)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Efecto: Colapso de Sinapsis')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'QH: Fallo de Arma (VD 15)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Efecto: Fallo de Arma')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'QH: Fallo de Ciberware (VD 15)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Efecto: Fallo de Ciberware')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'QH: Entorpecer Mov. (VD 17)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Efecto: Entorpecer Movimiento')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'QH: Reiniciar Óptica (VD 17)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Efecto: Reiniciar Óptica'));
+
 -- E. CROMO PURAMENTE DE COMBATE
 INSERT INTO buffos (nombre, descripcion) VALUES 
 
@@ -295,4 +332,194 @@ INSERT INTO faccion_buffos (id_faccion, id_buffo, tier_exacto, rol_requerido) VA
 ((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Maelstrom'), (SELECT id_buffo FROM buffos WHERE nombre = 'Gorilla Arms'), 3, 'Gorilla'),
 ((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Maelstrom'), (SELECT id_buffo FROM buffos WHERE nombre = 'Editor de Dolor / Berserk'), 3, 'Gorilla'),
 ((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Maelstrom'), (SELECT id_buffo FROM buffos WHERE nombre = 'Kiroshi "Stalker"'), 3, 'Ranged'),   
-((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Maelstrom'), (SELECT id_buffo FROM buffos WHERE nombre = 'Shock Absorber'), 3, 'Ranged');    
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Maelstrom'), (SELECT id_buffo FROM buffos WHERE nombre = 'Shock Absorber'), 3, 'Ranged'); 
+
+/* ==============================================================================
+   FASE 5: CREACIÓN DE FACCIÓN - MILITECH
+============================================================================== */
+
+-- 1. CREAR NUEVA PLANTILLA DE ARMA (Si no existe previamente)
+INSERT INTO plantillas_armas (nombre, dados_dano, id_dv_estandar, id_dv_autofuego) 
+VALUES ('Militech Commando Training', 4, NULL, NULL);
+
+-- 2. REGISTRO DE LA FACCIÓN
+INSERT INTO npc_faccion (nombre) VALUES ('Militech');
+
+-- 3. ASIGNACIÓN DE ARMAMENTO
+INSERT INTO faccion_armas (id_faccion, id_plantilla, tier_exacto, rol_requerido) VALUES 
+-- [ EQUIPO ESTÁNDAR PARA TODOS ]
+-- Range (R) - Tier 2
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Militech'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola pesada (Tech)'), 2, 'Ranged'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Militech'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Militech Commando Training'), 2, 'Ranged'),
+-- Flak (R) - Tier 2
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Militech'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola pesada (Tech)'), 2, 'Flak'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Militech'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Militech Commando Training'), 2, 'Flak'),
+-- Artillery (R) - Tier 3 (Recordatorio: Su rol en la base de datos es 'Ranged')
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Militech'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola pesada (Tech)'), 3, 'Ranged'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Militech'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Militech Commando Training'), 3, 'Ranged'),
+
+-- [ ARMAMENTO PRINCIPAL ESPECÍFICO ]
+-- Range (R) - Tier 2: Subfusil
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Militech'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'SMG (Power)'), 2, 'Ranged'),
+-- Flak (R) - Tier 2: Rifle de asalto
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Militech'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Rifle de asalto (Power)'), 2, 'Flak'),
+-- Artillery (R) - Tier 3: Rifle de asalto
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Militech'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Rifle de asalto (Power)'), 3, 'Ranged');
+
+
+-- 4. ASIGNACIÓN DE CROMO Y MEJORAS
+INSERT INTO faccion_buffos (id_faccion, id_buffo, tier_exacto, rol_requerido) VALUES 
+-- [ MEJORA OCULAR: TODOS (Para disparos automáticos) ]
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Militech'), (SELECT id_buffo FROM buffos WHERE nombre = 'Kiroshi "Stalker"'), 2, 'Ranged'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Militech'), (SELECT id_buffo FROM buffos WHERE nombre = 'Kiroshi "Stalker"'), 2, 'Flak'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Militech'), (SELECT id_buffo FROM buffos WHERE nombre = 'Kiroshi "Stalker"'), 3, 'Ranged'),
+
+-- [ MEJORA DE BRAZO: FLAK Y ARTILLERY (Manejo de retroceso autofuego) ]
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Militech'), (SELECT id_buffo FROM buffos WHERE nombre = 'Shock Absorber'), 2, 'Flak'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Militech'), (SELECT id_buffo FROM buffos WHERE nombre = 'Shock Absorber'), 3, 'Ranged');
+
+/* ==============================================================================
+   FASE 5: CREACIÓN DE FACCIÓN - NETRUNNERS
+============================================================================== */
+
+-- 1. REGISTRO DE LA FACCIÓN
+INSERT INTO npc_faccion (nombre) VALUES ('Netrunners');
+
+-- 2. ASIGNACIÓN DE ARMAMENTO Y QUICKHACKS
+INSERT INTO faccion_armas (id_faccion, id_plantilla, tier_exacto, rol_requerido) VALUES 
+-- [ TIER 1 - Novatos ]
+-- Pistola estándar
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Netrunners'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola pesada (Smart)'), 1, 'Ranged'),
+-- Quickhacks básicos (VD 15)
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Netrunners'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'QH: Cortocircuito (VD 15)'), 1, 'Ranged'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Netrunners'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'QH: Fallo de Ciberware (VD 15)'), 1, 'Ranged'),
+
+-- [ TIER 2 - Estándar ]
+-- Pistola estándar
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Netrunners'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola pesada (Smart)'), 2, 'Ranged'),
+-- Quickhacks intermedios (VD 15 y 17)
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Netrunners'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'QH: Sobrecalentamiento (VD 15)'), 2, 'Ranged'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Netrunners'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'QH: Reiniciar Óptica (VD 17)'), 2, 'Ranged'),
+
+-- [ TIER 3 - Élite ]
+-- Pistola estándar
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Netrunners'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola pesada (Smart)'), 3, 'Ranged'),
+-- Quickhacks avanzados (VD 17 y 19)
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Netrunners'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'QH: Contagio (VD 17)'), 3, 'Ranged'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Netrunners'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'QH: Colapso de Sinapsis (VD 19)'), 3, 'Ranged');
+
+
+-- 3. ASIGNACIÓN DE CROMO Y MEJORAS
+INSERT INTO faccion_buffos (id_faccion, id_buffo, tier_exacto, rol_requerido) VALUES 
+-- [ MEJORA OBLIGATORIA: ENLACE INTELIGENTE PARA ARMAS SMART Y HACKEOS ]
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Netrunners'), (SELECT id_buffo FROM buffos WHERE nombre = 'Enlace Inteligente (Smartlink)'), 1, 'Ranged'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Netrunners'), (SELECT id_buffo FROM buffos WHERE nombre = 'Enlace Inteligente (Smartlink)'), 2, 'Ranged'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Netrunners'), (SELECT id_buffo FROM buffos WHERE nombre = 'Enlace Inteligente (Smartlink)'), 3, 'Ranged');
+
+
+/* ==============================================================================
+   AMPLIACIÓN FASE 2: NUEVO CROMO / BUFO
+============================================================================== */
+INSERT INTO buffos (nombre, descripcion) VALUES 
+('Bioconductor', 'Cuando un Quickhack del usuario obtiene dos o más resultados de 6, inflige +5 de daño directo a PV.');
+
+/* ==============================================================================
+   FASE 5: CREACIÓN DE FACCIÓN - NETRUNNERS
+============================================================================== */
+
+-- 1. REGISTRO DE LA FACCIÓN
+INSERT INTO npc_faccion (nombre) VALUES ('Netrunners');
+
+-- 2. ASIGNACIÓN DE ARMAMENTO Y QUICKHACKS
+INSERT INTO faccion_armas (id_faccion, id_plantilla, tier_exacto, rol_requerido) VALUES 
+-- [ TIER 1 - Novatos ]
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Netrunners'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola pesada (Smart)'), 1, 'Ranged'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Netrunners'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'QH: Cortocircuito (VD 15)'), 1, 'Ranged'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Netrunners'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'QH: Fallo de Ciberware (VD 15)'), 1, 'Ranged'),
+
+-- [ TIER 2 - Estándar ]
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Netrunners'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola pesada (Smart)'), 2, 'Ranged'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Netrunners'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'QH: Sobrecalentamiento (VD 15)'), 2, 'Ranged'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Netrunners'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'QH: Reiniciar Óptica (VD 17)'), 2, 'Ranged'),
+
+-- [ TIER 3 - Élite ]
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Netrunners'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Pistola pesada (Smart)'), 3, 'Ranged'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Netrunners'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'QH: Contagio (VD 17)'), 3, 'Ranged'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Netrunners'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'QH: Colapso de Sinapsis (VD 19)'), 3, 'Ranged');
+
+
+-- 3. ASIGNACIÓN DE CROMO Y MEJORAS
+INSERT INTO faccion_buffos (id_faccion, id_buffo, tier_exacto, rol_requerido) VALUES 
+-- [ MEJORA OBLIGATORIA: ENLACE INTELIGENTE ]
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Netrunners'), (SELECT id_buffo FROM buffos WHERE nombre = 'Enlace Inteligente (Smartlink)'), 1, 'Ranged'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Netrunners'), (SELECT id_buffo FROM buffos WHERE nombre = 'Enlace Inteligente (Smartlink)'), 2, 'Ranged'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Netrunners'), (SELECT id_buffo FROM buffos WHERE nombre = 'Enlace Inteligente (Smartlink)'), 3, 'Ranged'),
+
+-- [ MEJORA NEURAL: BIOCONDUCTOR (Aumenta el daño de Quickhacks) ]
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Netrunners'), (SELECT id_buffo FROM buffos WHERE nombre = 'Bioconductor'), 2, 'Ranged'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Netrunners'), (SELECT id_buffo FROM buffos WHERE nombre = 'Bioconductor'), 3, 'Ranged');
+
+/* ==============================================================================
+   AMPLIACIÓN FASE 2: ARMAMENTO PESADO Y BUFOS ROBÓTICOS
+============================================================================== */
+
+-- 1. Nueva Plantilla de Arma: Cañón Rotatorio (Autofuego 5)
+INSERT INTO plantillas_armas (nombre, dados_dano, id_dv_estandar, id_dv_autofuego) VALUES 
+('Cañón Rotatorio (Power)', 6, (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Rifle de Asalto'), (SELECT id_dv_tabla FROM dv_tablas WHERE nombre_esquema = 'Rifle de Asalto (Autofuego)'));
+
+-- 2. Vincular Propiedades a la Nueva Arma
+INSERT INTO armas_propiedades (id_plantilla, id_propiedad) VALUES 
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Cañón Rotatorio (Power)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Disparo Automático (5)')),
+((SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Cañón Rotatorio (Power)'), (SELECT id_propiedad FROM propiedades_armas WHERE nombre = 'Arma Power'));
+
+-- 3. Crear el Bufo Estructural Robótico (Si no se ha creado previamente)
+INSERT INTO buffos (nombre, descripcion) VALUES 
+('Chasis Mecánico', 'Inmune a venenos, gases, y heridas críticas biológicas (sangrado, pulmón colapsado). No puede curarse con Primeros Auxilios.');
+
+
+/* ==============================================================================
+   AMPLIACIÓN FASE 4: CHASIS BASE ROBÓTICOS (Escala Tier 1 al 4)
+============================================================================== */
+
+INSERT INTO npc_base (nombre, tier, max_hp, max_body_sp, max_head_sp, max_move, base_combate, base_iniciativa, rol) VALUES 
+('Drone Ligero (R)', 1, 15, 11, 11, 8, 13, 6, 'Ranged'), -- Tier 1
+('Drone Táctico (R)', 2, 20, 13, 13, 6, 13, 6, 'Ranged'), -- Tier 2
+('Drone Pesado (R)', 3, 30, 15, 15, 5, 14, 5, 'Ranged'), -- Tier 3
+('Minotauro (Tank)', 4, 60, 18, 18, 4, 15, 4, 'Tank');   -- Tier 4
+
+
+/* ==============================================================================
+   AMPLIACIÓN FASE 5: FACCIÓN "SISTEMAS AUTOMATIZADOS"
+============================================================================== */
+
+-- 1. Registro de la Facción
+INSERT INTO npc_faccion (nombre) VALUES ('Sistemas Automatizados');
+
+-- 2. Asignación de Armamento por Tier
+INSERT INTO faccion_armas (id_faccion, id_plantilla, tier_exacto, rol_requerido) VALUES 
+-- Tier 1
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Sistemas Automatizados'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'SMG (Power)'), 1, 'Ranged'),
+-- Tier 2
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Sistemas Automatizados'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'SMG (Power)'), 2, 'Ranged'),
+-- Tier 3
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Sistemas Automatizados'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Rifle de asalto (Power)'), 3, 'Ranged'),
+-- Tier 4
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Sistemas Automatizados'), (SELECT id_plantilla FROM plantillas_armas WHERE nombre = 'Cañón Rotatorio (Power)'), 4, 'Tank');
+
+-- 3. Asignación de Integración Robótica (Bufos)
+INSERT INTO faccion_buffos (id_faccion, id_buffo, tier_exacto, rol_requerido) VALUES 
+-- Regla de Chasis Mecánico para todos los niveles
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Sistemas Automatizados'), (SELECT id_buffo FROM buffos WHERE nombre = 'Chasis Mecánico'), 1, 'Todos'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Sistemas Automatizados'), (SELECT id_buffo FROM buffos WHERE nombre = 'Chasis Mecánico'), 2, 'Todos'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Sistemas Automatizados'), (SELECT id_buffo FROM buffos WHERE nombre = 'Chasis Mecánico'), 3, 'Todos'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Sistemas Automatizados'), (SELECT id_buffo FROM buffos WHERE nombre = 'Chasis Mecánico'), 4, 'Todos'),
+
+-- Óptica avanzada para operar sin luz (Sensores)
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Sistemas Automatizados'), (SELECT id_buffo FROM buffos WHERE nombre = 'Luz tenue / IR / UV'), 1, 'Todos'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Sistemas Automatizados'), (SELECT id_buffo FROM buffos WHERE nombre = 'Luz tenue / IR / UV'), 2, 'Todos'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Sistemas Automatizados'), (SELECT id_buffo FROM buffos WHERE nombre = 'Luz tenue / IR / UV'), 3, 'Todos'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Sistemas Automatizados'), (SELECT id_buffo FROM buffos WHERE nombre = 'Luz tenue / IR / UV'), 4, 'Todos'),
+
+-- Estabilizadores de retroceso (Shock Absorber) requeridos para el equipo pesado
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Sistemas Automatizados'), (SELECT id_buffo FROM buffos WHERE nombre = 'Shock Absorber'), 3, 'Ranged'),
+((SELECT id_faccion FROM npc_faccion WHERE nombre = 'Sistemas Automatizados'), (SELECT id_buffo FROM buffos WHERE nombre = 'Shock Absorber'), 4, 'Tank');
